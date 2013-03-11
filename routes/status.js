@@ -3,10 +3,10 @@
  * GET status info.
  */
  
-var Variety = require('../variety')
+var Variety = require('../weibo/variety')
   , Provider = require('../weibo/provider')
-  , Metrics = require('../metrics')
-  , Samples = require('../samples');
+  , Metrics = require('../weibo/metrics')
+  , Samples = require('../weibo/samples');
 
 var variety = new Variety();
 var provider = new Provider();

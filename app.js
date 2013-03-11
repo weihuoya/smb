@@ -12,11 +12,11 @@ var express = require('express')
   , http = require('http')
   , path = require('path')
   , assert = require('assert')
-  , utest = require('./test')
+  , utest = require('./test/test')
   //, memwatch = require('memwatch')
   //, Crawler = require('./weibo/crawler')
   , Weibo = require('./weibo/weibo')
-  , Robot = require('./robot');
+  , Robot = require('./weibo/robot');
 
 var app = express();
 var weibo = new Weibo(true);

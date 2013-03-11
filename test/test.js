@@ -1,8 +1,8 @@
-var Variety = require('./variety')
+var Variety = require('../weibo/variety')
+  , Provider = require('../weibo/provider')
+  , Weibo = require('../weibo/weibo')
+  , Crawler = require('../weibo/crawler')
   , _ = require('./underscore')
-  , Provider = require('./weibo/provider')
-  , Weibo = require('./weibo/weibo')
-  , Crawler = require('./weibo/crawler')
   , assert = require('assert');
 
 

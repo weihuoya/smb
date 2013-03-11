@@ -1,7 +1,7 @@
 var HttpClient = require('./http'),
     QueryString= require('querystring'),
     URL = require('url'),
-    Samples = require('../samples');
+    Samples = require('./samples');
 
 module.exports = Weibo;
 

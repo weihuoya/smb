@@ -1,7 +1,7 @@
 
-var SinaProvider = require('./weibo/provider')
-  , SinaCrawler = require('./weibo/crawler')
-  , Weibo = require('./weibo/weibo')
+var SinaProvider = require('./provider')
+  , SinaCrawler = require('./crawler')
+  , Weibo = require('./weibo')
   , Metrics = require('./metrics')
   , async = require('asyncjs');
 

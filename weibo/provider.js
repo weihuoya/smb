@@ -3,7 +3,7 @@ var Db = require('mongodb').Db
   , Server = require('mongodb').Server
   , BSON = require('mongodb').BSON
   , ObjectID = require('mongodb').ObjectID
-  , Monitor = require('../monitor');
+  , Monitor = require('./monitor');
 
 module.exports = SinaProvider;
 
