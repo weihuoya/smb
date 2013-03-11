@@ -1,0 +1,37 @@
+.btn-group {
+  width: 100%;
+  margin: 8px auto -5px;
+  text-align: center;
+}
+.btn-group a{
+  display: inline-block;
+}
+.userinfo-item {
+  margin: 4px 0;
+}
+.person-info {
+  margin: 0;
+}
+.person-info dt {
+  float: left;
+  margin: 0 10px;
+}
+.person-info dt img {
+  border-radius: 5px;
+}
+.person-info ul {
+  list-style-type: none;
+  margin: 2px 0;
+}
+.person-info li {
+  float: left;
+  margin: 0px 2px 0 0;
+  padding: 1px 5px;
+  font-size: 0.8em;
+}
+.person-info dd a {
+  text-decoration: none;
+}
+.person-info dd > a {
+  font-weight: bold;
+}

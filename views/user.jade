@@ -1,0 +1,102 @@
+extends layout
+
+block append head
+  link(href="/stylesheets/user.css", rel="stylesheet", media="screen")
+
+block content
+  div.container-fluid
+    div.row-fluid
+      div.span3
+        div.well.sidebar-nav
+          div.userinfo-item.clearfix
+            dl.person-info
+              dt: a(href="#"): img(src="http://tp1.sinaimg.cn/1725027100/50/5605235826/1", width="50", height="50", alt="weey")
+              dd
+                a(href="#") weey
+                ul.user-status
+                  li
+                    span 关注:
+                    a(href="#follow"): strong 228
+                  li
+                    span 粉丝:
+                    a(href="#fans"): strong 106
+                  li
+                    span 微博:
+                    a(href="#tweet"): strong 402
+                    
+          div.userinfo-item.clearfix
+            dl.person-info
+              dt: a(href="#"): img(src="http://tp1.sinaimg.cn/1725027100/50/5605235826/1", width="50", height="50", alt="weey")
+              dd
+                a(href="#") weey
+                ul.user-status
+                  li
+                    span 关注:
+                    a(href="#follow"): strong 228
+                  li
+                    span 粉丝:
+                    a(href="#fans"): strong 106
+                  li
+                    span 微博:
+                    a(href="#tweet"): strong 402
+                    
+          div.user-handle
+            div.btn-group
+              button#add-user.btn 添加
+              button#sel-user.btn 选择
+              button#del-user.btn 删除
+
+      div.span9
+        div.hero-unit
+        div.row-fluid
+
+block append script
+  script
+    (function($) {
+      var view = Backbone.View.extend({
+        el: $('div.container-fluid')[1],
+        events: {
+          'click button#add-user': 'addUser',
+          'click button#sel-user': 'selUser',
+          'click button#del-user': 'delUser'
+        },
+        initialize: function() {
+          console.log('initialize');
+          //_.bindAll(this, 'addUser', 'selUser', 'delUser');
+        },
+        addUser: function() {
+          var x = {href: 'http://127.0.0.1:3000/'};
+          var unit = $('div.hero-unit', this.el)[0];
+          console.log('addUser');
+          console.log(unit);
+          $(unit).append('<p>添加用户</p>');
+          window.open(x.href);
+        },
+        selUser: function() {
+          var unit = $('div.hero-unit', this.el)[0];
+          console.log('selUser');
+          $(unit).append('<p>选择用户</p>');
+        },
+        delUser: function() {
+          var unit = $('div.hero-unit', this.el)[0];
+          console.log('delUser');
+          $(unit).append('<p>删除用户</p>');
+        }
+      });
+      
+      new view();
+      
+    })(jQuery);
+    /*
+    $(document).ready(function() {
+       $('#NewTab').click(function() {
+            $(this).target = "_blank";
+            window.open($(this).prop('href'));
+            return false;
+       });
+    });​
+    */
+    
+    
+    
+    

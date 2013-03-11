@@ -1,0 +1,47 @@
+<script id="t-collection-header", type="text/template">
+<tr><td rowspan="2">Collection</td><td>Object Count</td><td>Collection Size</td><td>Average Object Size</td><td>Storage Size</td><td>Num Extents</td><td>N Indexes</td></tr>
+<tr><td>Last Extent Size</td><td>Padding Factor</td><td>System Flags</td><td>User Flags</td><td>Total Index Size</td><td>Index Size</td></tr>
+</script>
+
+<script id="t-collection-body", type="text/template">
+<tr><td rowspan="2"><%= ns %></td><td id="count"><%= count %></td><td id="size"><%= size %></td><td id="avgObjSize"><%= avgObjSize %></td><td id="storageSize"><%= storageSize %></td><td id="numExtents"><%= numExtents %></td><td id="nindexes"><%= nindexes %></td></tr>
+<tr><td id="lastExtentSize"><%= lastExtentSize %></td><td id="paddingFactor"><%= paddingFactor %></td><td id="systemFlags"><%= systemFlags %></td><td id="userFlags"><%= userFlags %></td><td id="totalIndexSize"><%= totalIndexSize %></td><td id="indexSizes"><%= indexSizes %></td></tr>
+</script>
+
+<script id="t-database-list", type="text/template">
+<li><a href="#status" data-type="database" data-name="<%= name %>"><%= name %> (<%= sizeOnDisk %>MB)</a></li>
+</script>
+
+<script id="t-metrics-list", type="text/template">
+<li class="nav-header">Metrics</li>
+<li><a href="#status" data-type="robot" data-name="user">User</a></li>
+<li><a href="#status" data-type="robot" data-name="status">Status</a></li>
+<li><a href="#status" data-type="crawler" data-name="">Crawler</a></li>
+</script>
+
+<script id="t-weibo-list", type="text/template">
+<li class="nav-header">Weibo</li>
+<li><a href="#status" data-type="weibo" data-name="user">User</a></li>
+<li><a href="#status" data-type="weibo" data-name="status">Status</a></li>
+<li><a href="#status" data-type="weibo" data-name="comment">Comment</a></li>
+</script>
+
+<script id="t-status-view", type="text/template">
+<div class="span3"><div id="status-list" class="well sidebar-nav"></div></div>
+<div id="status-content" class="span9"></div>
+</script>
+
+<script id="t-user-login", type="text/template">
+<form accept-charset="UTF-8" action="/login" method="post">
+<h1>用户登录</h1>
+<div class="formbody">
+<label>帐号：</label><input id="username" autocapitalize="off" autofocus="autofocus" name="login" type="text" tabindex="1" class="text"/>
+<label>密码：</label><input id="password" autocomplete="disabled" name="password" type="password" tabindex="2" class="text"/>
+<div class="btn_submit"><input name="commit" tabindex="3" type="submit" value="登录"/></div>
+<div id="quick_signin"><label>快捷登录</label>
+<a href="/auth/weibo"><img src="/images/qq_login_btn.gif" width="124" height="24"/></a>
+<a href="/auth/weibo"><img src="/images/sina_login_btn.png" width="126" height="24"/></a>
+</div>
+</div>
+</form>
+</script>

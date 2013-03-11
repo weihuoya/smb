@@ -1,0 +1,15 @@
+{
+  "name": "smb",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node app"
+  },
+  "dependencies": {
+    "mongodb": "*",
+    "asyncjs": "*",
+    "socket.io": "*",
+    "express": "*",
+    "jade": "*"
+  }
+}
