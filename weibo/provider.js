@@ -13,6 +13,7 @@ var COMMENT = 'comment';
 var FRIEND = 0;
 var FOLLOWER = 1;
 var STATUSID = 2;
+var RECORD = 3;
 
 
 function SinaProvider(host, port) {
@@ -24,6 +25,7 @@ function SinaProvider(host, port) {
   this.friend = undefined;
   this.status = undefined;
   this.comment = undefined;
+  this.record = undefined;
   
   //Monitor();
 }
@@ -53,8 +55,9 @@ SinaProvider.prototype.open = function(host, port, callback) {
     self.friend = new Circle(db, FRIEND);
     self.follower = new Circle(db, FOLLOWER);
     self.status = new Post(db, STATUS);
-    self.status.ids = new Circle(db, STATUSID); 
+    self.status.id = new Circle(db, STATUSID); 
     self.comment = new Post(db, COMMENT);
+    self.record = new Circle(db, RECORD); 
 
     callback(null, self);
   });
@@ -111,9 +114,9 @@ function User(db) {
     });
   }
   
-  this.findById = function(id, fields, callback) {
+  this.find = function(id, fields, callback) {
     var query = {id: id};
-      if(typeof fields === 'function') {
+    if(typeof fields === 'function') {
       callback = fields;
       fields = {};
     }
@@ -123,7 +126,7 @@ function User(db) {
     });
   }
   
-  this.findPart = function(count, since, max, callback) {
+  this.page = function(count, since, max, callback) {
     if(!callback) {
       if(typeof max === 'function') {
         callback = max;
@@ -197,6 +200,20 @@ function Circle(db, type) {
     });
   }
   
+  this.duplicate = function(uid, callback) {
+    var query = {$match: {type: this.type, uid: uid}};
+    var pipelines = [query];
+    
+    pipelines.push({ $group: {_id: '$cid', count: {$sum: 1}} });
+    pipelines.push({ $match: {count: {$gt: 1}} });
+    pipelines.push({ $sort:  {count: 1} });
+    
+    this.db.collection(this.name, function(error, collection) {
+      if(error) return callback(error);
+      collection.aggregate(pipelines, callback);
+    });
+  }
+  
   this.stats = function(count, since, max, callback) {
     var key = 'uid';
     var pipelines = [];
@@ -215,12 +232,6 @@ function Circle(db, type) {
       }
     }
     
-    if(this.name === COMMNET) {
-      key = 'sid';
-    } else if(this.name === STATUS) {
-      key = 'uid';
-    }
-    
     if(since) {
       if(max) {
         query.$match[key] = {$gte: since._id, $lt: max._id};
@@ -234,7 +245,7 @@ function Circle(db, type) {
     }
     
     pipelines.push(query);
-    pipelines.push({ $group: {_id: '$'+key, count: {$sum: 1}} });
+    pipelines.push({ $group: {_id: '$uid', count: {$sum: 1}} });
     pipelines.push({ $sort:  {count: 1} });
     if(count) pipelines.push({ $limit: count });
     
@@ -244,7 +255,9 @@ function Circle(db, type) {
     });
   }
   
-  this.findPart = function(query, count, since, max, callback) {
+  this.page = function(uid, count, since, max, callback) {
+    var query = {uid: uid, type: this.type};
+    
     if(!callback) {
       if(typeof max === 'function') {
         callback = max;
@@ -258,31 +271,48 @@ function Circle(db, type) {
       }
     }
     
-    query.type = this.type;
-    
     if(since) {
+      since = typeof since.cid !== 'undefined' ? since.cid : since;
       if(max) {
-        query.cid = {$gte: since.cid, $lt: max.cid};
+        max = typeof max.cid !== 'undefined' ? max.cid : max;
+        query.cid = {$gte: since, $lt: max};
       } else {
-        query.cid = {$gte: since.cid};
+        query.cid = {$gte: since};
       }
     } else if(max) {
+      max = typeof max.cid !== 'undefined' ? max.cid : max;
       query.cid = {$lt: max.cid};
     }
     
+    //console.log('[P] circle page params: '+uid+' '+count+' '+since+' '+max+', query: ', query);
     this.db.collection(this.name, function(error, collection) {
       if(error) return callback(error);
-      var cursor = collection.find(query).sort({cid: -1});
+      var cursor = collection.find(query, {fields: {_id: 0, uid: 1, cid: 1}}).sort({cid: 1});
       if(count) { cursor = cursor.limit(count); }
       cursor.toArray(callback);
     });
   }
   
-  this.findNext = function(doc, callback) {
-    var query = {id: {$lt: doc.id}, uid: doc.uid, type: this.type};
+  this.max = function(uid, max_one, callback) {
+    if(typeof max_one === 'function') callback = max_one;
     this.db.collection(this.name, function(error, collection) {
       if(error) return callback(error);
-      collection.find(query).sort({_id: -1}).limit(1).nextObject(callback);
+      collection.find({uid: uid}, {fields: {uid: 1, cid: 1, _id: 0}}).sort({cid: max_one?-1:1}).limit(1).nextObject(callback);
+    });
+  }
+  
+  this.next = function(uid, cid, callback) {
+    var query;
+    if(typeof uid === 'object' && typeof cid === 'function') {
+      query = {uid: uid.uid, cid: {$gt: uid.cid?uid.cid:0}, type: this.type};
+      callback = cid;
+    } else {
+      query = {uid: uid, cid: {$gt: cid?cid:0}, type: this.type};
+    }
+    console.log('[P] circle find next query: ', query);
+    this.db.collection(this.name, function(error, collection) {
+      if(error) return callback(error);
+      collection.find(query).sort({cid: 1}).limit(1).nextObject(callback);
     });
   }
   
@@ -404,7 +434,7 @@ function Post(db, name) {
     });
   }
   
-  this.findById = function(id, fields, callback) {
+  this.find = function(id, fields, callback) {
     if(typeof fields === 'function') {
       callback = fields;
       fields = {};
@@ -415,7 +445,7 @@ function Post(db, name) {
     });
   }
   
-  this.findPart = function(query, count, since, max, callback) {
+  this.page = function(query, count, since, max, callback) {
     if(!callback) {
       if(typeof max === 'function') {
         callback = max;
@@ -447,7 +477,7 @@ function Post(db, name) {
     });
   }
 
-  this.findMax = function(query, max_one, callback) {
+  this.max = function(query, max_one, callback) {
     if(typeof max_one === 'function') { callback = max_one; }
     this.db.collection(this.name, function(error, collection) {
       if(error) return callback(error);

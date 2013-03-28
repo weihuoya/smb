@@ -2,7 +2,7 @@ var Variety = require('../weibo/variety')
   , Provider = require('../weibo/provider')
   , Weibo = require('../weibo/weibo')
   , Crawler = require('../weibo/crawler')
-  , _ = require('./underscore')
+  , _ = require('../underscore')
   , assert = require('assert');
 
 
@@ -22,11 +22,21 @@ function weibo_test(weibo) {
     var ids = _.pluck( data.statuses, 'id');
     console.log(ids);
   });
+  
 }
 
 
 function crawler_test(weibo) {
-  this.crawler = new Crawler(weibo);
+  var crawler = new Crawler(weibo);
+  
+  crawler.getFriendsIds(1725027100, function(data, next) {
+    console.log('UID', data);
+    next(true);
+  }, function(error, count) {
+    //if(error) throw error;
+    //console.log('count:', count);
+  });
+  
 }
 
 
@@ -53,6 +63,12 @@ function db_test() {
       if(error) throw error;
       console.log(result);
     });
+    
+    provider.findPart(1725027100, 100, function(error, data) {
+      if(error) throw error;
+      console.log('UID:', data);
+    });
+    
   });
 }
 

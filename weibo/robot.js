@@ -1,20 +1,310 @@
 
 var SinaProvider = require('./provider')
   , SinaCrawler = require('./crawler')
-  , Weibo = require('./weibo')
   , Metrics = require('./metrics')
-  , async = require('asyncjs');
+  , async = require('asyncjs')
+  ,_ = require('../underscore');
 
 module.exports = SinaRobot;
 
 function SinaRobot(weibo) {
+  var self = this;
   this.crawler = new SinaCrawler(weibo);
   this.provider = new SinaProvider();
+  
+  var bundle = {
+    status: {
+      todo: function(id, callback) {
+        self.provider.user.find(id, {_id: 0, id: 1, statuses_count: 1}, function(error, user) {
+          if(error) return callback(error);
+          
+          if(user && user.statuses_count > 10)
+            return callback(null, user.statuses_count);
+          else
+            return callback(null, 0);
+        });
+      },
+      
+      count: function(id, callback) {
+        self.provider.status.count({uid: id}, callback);
+      },
+      
+      worker: function(id, callback) {
+        var counter = 0;
+        var action = self.savePosts.bind(self);
+        
+        range(id, false, function(error, cid) {
+          if(error) return callback(error);
+          self.crawler.getStatuses(id, null, cid ? cid : null, action, function(error, count1) {
+            if(error) return callback(error);
+            range(id, true, function(error, cid) {
+              if(error) return callback(error);
+              self.crawler.getStatuses(id, cid ? cid : null, null, action, function(error, count2) {
+                if(error) return callback(error);
+                console.log('[R] lower count: '+count1+', upper count: '+count2+', total count: '+(count1 + count2));
+                counter = count1 + count2;
+                //callback(null, count1 + count2);
+                verify(id, null, null, function(error, data1) {
+                  if(error) return callback(error);
+                  repair(id, data1, function(error, data2) {
+                    if(error) return callback(error);
+                    if(Array.isArray(data2)) counter += data1.length - data2.length;
+                    callback(null, counter);
+                  });
+                });
+              });
+            });
+          });
+        });
+        
+        function range(id, flag, callback) {
+          self.provider.status.id.max(id, flag, function(error, circle) {
+            if(error) return callback(error);
+            if(circle && circle.cid) {
+              console.log('[R] db status id find '+ (flag?'max':'min') +': ' + circle.cid);
+              callback(null, circle.cid);
+            } else  {
+              self.provider.status.max({uid: id}, flag, function(error, status) {
+                if(error) return callback(error);
+                if(status && status.id) {
+                  console.log('[R] db status find '+ (flag?'max':'min') +': ' + status.id);
+                  callback(null, status.id);
+                } else {
+                  callback();
+                }
+              });
+            }
+          });
+        }
+        
+        function repair(id, lost, callback) {
+          if(!Array.isArray(lost) || lost.length < 1) return callback();
+          var min = lost[0], max = lost.length>1?lost[lost.length-1]:lost[0]+1;
+          self.crawler.getStatuses(id, min, max, action, function(error, count) {
+            if(error) return callback(error);
+            verify(id, min, max, function(error, data) {
+              if(lost.length === data.length) {
+                console.log('[R] status lost id count: '+data.length, data);
+                callback(null, data);
+              } else {
+                repair(id, data, callback);
+              }
+            });
+          });
+        }
+        
+        function verify(uid, min, max, callback) {
+          var lost = [];
+          
+          if(!callback) {
+            if(typeof max === 'function') {
+              callback = max;
+              max = null;
+            } else if(typeof min === 'function') {
+              callback = min;
+              min = null;
+            }
+          }
+          
+          /*self.provider.status.id.duplicate(uid, function(error, items) {
+            if(error) return callback(error);
+            console.log('[R] status ids duplicate: ', items);
+            repeater();
+          });*/
+          
+          repeater(min, max);
+          
+          function repeater(min, max) {
+            self.provider.status.id.page(uid, 50, min?min:null, max?max:null, function(error, data) {
+              if(error) return callback(error);
+              
+              if(Array.isArray(data) && data.length > 0) {
+                if( (min && min.cid === data[0].cid) || (max && max.cid === data[0].cid) ) data.shift();
+                if(data.length > 0) {
+                  async.list(data).each(function(item, next) {
+                    self.provider.status.find(item.cid, {_id: 0, id: 1}, function(error, status) {
+                      if(error) return next(error);
+                      if(!status) { lost.push(item.cid); }
+                      next();
+                    });
+                  }).end(function(error, result) {
+                    repeater(data[data.length-1]);
+                  });
+                } else {
+                  console.log('[R] status lost count: '+lost.length, lost);
+                  callback(null, lost);
+                }
+              } else {
+                console.log('[R] status lost count: '+lost.length, lost);
+                callback(null, lost);
+              }
+            });
+          }
+        }
+      }//end of status worker function
+    },
+    
+    repost: {
+      todo: function(id, callback) {
+        self.provider.status.find(sid, {_id: 0, id: 1, reposts_count: 1}, function(error, status) {
+          if(error) return callback(error);
+          if(status && status.reposts_count)
+            return callback(error, status.reposts_count);
+          else
+            return callback(error, 0);
+        });
+      },
+      
+      count: function(id, callback) {
+        self.provider.status.count({sid: id}, callback);
+      },
+      
+      worker: function(id, callback) {
+        self.provider.status.max({sid: id}, false, function(error, repost) {
+          if(error) return callback(error);
+          var action = self.savePosts.bind(self);
+          self.crawler.getReposts(id, null, repost ? repost.id : null, action, callback);
+        });
+      }
+    },
+    
+    comment: {
+      todo: function(id, callback) {
+        self.provider.status.find(sid, {_id: 0, id: 1, comments_count: 1}, function(error, status) {
+          if(error) return callback(error);
+          
+          if(user && user.comments_count > 10)
+            return callback(null, user.comments_count);
+          else
+            return callback(null, 0);
+        });
+      },
+      
+      count: function(id, callback) {
+        self.provider.comment.count({sid: id}, callback);
+      },
+      
+      worker: function(id, callback) {
+        var action = self.savePosts.bind(self);
+        self.provider.comment.max({sid: id}, false, function(error, comment) {
+          if(error) return callback(error);
+          self.crawler.getComments(id, null, comment ? comment.id : null, action, callback);
+        });
+      }
+    },
+    
+    status_id: {
+      todo: function(id, callback) {
+        self.provider.user.find(id, {_id: 0, id: 1, statuses_count: 1}, function(error, user) {
+          if(error) return callback(error);
+          if(user && user.statuses_count)
+            callback(null, user.statuses_count);
+          else
+            callback(null, 0);
+        });
+      },
+      
+      count: function(id, callback) {
+        self.provider.status.id.count(id, callback);
+      },
+      
+      worker: function(id, callback) {
+        self.provider.status.id.remove(id, function(error, result) {
+          if(error) return callback(error);
+          self.crawler.getStatusIds(id, null, null, function(data, callback) {
+            self.provider.status.id.save(id, data, callback);
+          }, callback);
+        });
+      }
+    },
+    
+    friend: {
+      todo: function(id, callback) {
+        self.provider.user.find(id, {_id: 0, id: 1, friends_count: 1}, function(error, user) {
+          if(error) return callback(error);
+          if(user && user.friends_count)
+            return callback(null, user.friends_count);
+          else
+            return callback(null, 0);
+        });
+      },
+      
+      count: function(id, callback) {
+        self.provider.friend.count(id, callback);
+      },
+      
+      worker: function(id, callback) {
+        self.provider.friend.remove(id, function(error, data) {
+          if(error) return callback(error);
+          
+          //获取所有好友的用户ID
+          self.crawler.getFriendsIds(id, function(data, callback) {
+            self.provider.friend.save(id, data, callback);
+          }, function(error, count) {
+            if(error) return callback(error);
+            var action = self.saveUsers.bind(self);
+            //获取所有好友的用户信息
+            self.crawler.getFriends(id, action, callback);
+          });
+        });
+      }
+    },
+    
+    follower: {
+      todo: function(id, callback) {
+        self.provider.user.find(id, {_id: 0, id: 1, followers_count: 1}, function(error, user) {
+          if(error) return callback(error);
+          if(user && user.followers_count)
+            return callback(null, user.followers_count);
+          else
+            return callback(null, 0);
+        });
+      },
+      
+      count: function(id, callback) {
+        self.provider.follower.count(id, callback);
+      },
+      
+      worker: function(id, callback) {
+        self.provider.follower.remove(id, function(error, data) {
+          if(error) callback(error);
+          
+          self.crawler.getFollowersIds(id, function(data, callback) {
+            self.provider.follower.save(id, data, callback);
+          }, function(error, count) {
+            if(error) return callback(error);
+            var action = self.saveUsers.bind(self);
+            self.crawler.getFollowers(id, action, callback);
+          });
+        });
+      }
+    }
+  };
+
+  for(var key in bundle) 
+    this[key] = handler(bundle, key);
+
+  function handler(bundle, x) {
+    return function(id, callback) {
+      bundle[x].todo(id, function(error, value) {
+        if(error) return callback(erro);
+        if(value > 0) {
+          bundle[x].count(id, function(error, count) {
+            if(error) return callback(error);
+            console.log('[R] user '+x+' count: '+value+', db '+x+' count: '+count);
+            if(value === count || Math.abs(value - count) < 10)
+              return callback(null, 0);
+            else
+              bundle[x].worker(id, callback);
+          });
+        } else  {
+          bundle[x].worker(id, callback);
+        }
+      });
+    };
+  }
 }
 
-SinaRobot.prototype.log = function() {
-  console.log.apply(console, arguments);
-}
 
 SinaRobot.prototype.run = function(callback) {
   var self = this;
@@ -26,119 +316,65 @@ SinaRobot.prototype.run = function(callback) {
         if(error) return callback(error);
         self.crawler.adjustFrequency(function(error) {
           if(error) return callback(error);
-          self.WeiboHandler(params.uid, callback);
+          self.handler(params.uid, callback);
         });
-      });      
+      });
     });
   };
 }
 
-SinaRobot.prototype.status = function(uid, callback) {
-  var self = this;
-  console.log('[R] status uid:'+uid);
-  self.provider.user.findById(uid, {_id: 0, id: 1, statuses_count: 1}, function(error, user) {
-    if(error) return callback(error);
-    if(!user) return handler(uid, callback);
-    if(user.statuses_count < 10) return callback(null, 0);
-    
-    console.log(user);
-    Metrics.total({uid: user.id, status: user.statuses_count});
-    
-    self.provider.status.count({uid: uid}, function(error, count) {
-      if(error) return callback(error);
-      
-      Metrics.count({uid: uid, status: count});
-      console.log('[R] status total='+user.statuses_count+', count='+count);
-      
-      if( user.statuses_count === count || (user.statuses_count > count && user.statuses_count < count + 5) ) {
-        console.log('[R] status exsited and pass');
-        callback(null, 0);
-      } else {
-        handler(uid, callback);
-      }
-    });
-  });
-  
-  function handler(uid, callback) {
-    self.provider.status.findMax({uid: uid}, false, function(error, status) {
-      if(error) return callback(error);
-      if(!status) {
-        console.log('[R] findMax status is empty');
-      } else {
-        console.log('[R] status handler findMax......');
-        console.log(status);
-      }
-      var action = self.savePosts.bind(self);
-      self.crawler.getStatuses(uid, null, status ? status.id : null, action, callback);
-    });
-  }
-}
 
-SinaRobot.prototype.repost = function(sid, callback) {
-  var self = this;
-  self.provider.status.findById(sid, {_id: 0, id: 1, reposts_count: 1}, function(error, status) {
-    if(error) return callback(error);
-    if(!status) return handler(sid, callback);
-    
-    console.log(status);
-    Metrics.total({sid: sid, uid: status.uid, repost: status.reposts_count});
-    
-    self.provider.status.count({sid: sid}, function(error, count) {
-      if(error) return callback(error);
-      
-      Metrics.count({sid: sid, repost: count});
-      console.log('[R] repost total='+status.reposts_count+', count='+count);
-      
-      if( status.reposts_count === count || (status.reposts_count > count && status.reposts_count < count + 5) ) {
-        console.log('[R] repost exsited and pass');
-        callback(null, 0);
-      } else {
-        handler(sid, callback);
-      }
-    });
-  });
+SinaRobot.prototype.handler = function(user, callback) {
+  var self = this, stack = [user], queue = [user];
   
-  function handler(sid, callback) {
-    self.provider.status.findMax({sid: sid}, false, function(error, repost) {
-      if(error) return callback(error);
-      var action = self.savePosts.bind(self);
-      self.crawler.getReposts(sid, null, repost ? repost.id : null, action, callback);
-    });
-  }
-}
-
-
-SinaRobot.prototype.comment = function(sid, callback) {
-  var self = this;
-  self.provider.status.findById(sid, {_id: 0, id: 1, comments_count: 1}, function(error, status) {
-    if(error) return callback(error);
-    if(!status) return handler(sid, callback);
-    
-    console.log(status);
-    Metrics.total({sid: sid, uid: status.uid, comment: status.comments_count});
-    
-    self.provider.comment.count({sid: sid}, function(error, count) {
-      if(error) return callback(error);
-      
-      Metrics.count({sid: sid, comment: count});
-      console.log('[R] comment total='+status.comments_count+', count='+count);
-      
-      if(status.comments_count === count || (status.comments_count > count && status.comments_count < count + 5) ) {
-        console.log('[R] repost exsited and pass');
-        callback(null, 0);
-      } else {
-        handler(sid, callback);
-      }
-    });
-  });
+  repeater();
   
-  function handler(sid, callback) {
-    self.provider.comment.findMax({sid: sid}, false, function(error, comment) {
-      if(error) return callback(error);
-      var max_id = null;
-      if(comment) { max_id = comment.id; }
-      var action = self.savePosts.bind(self);
-      self.crawler.getComments(sid, null, max_id, action, callback);
+  function repeater() {
+    async.list(queue).each(function(uid, next) {
+      console.log('[R] robot handler uid: '+uid);
+      self.crawler.getUser(uid, function(error, user) {
+        if(error) return next(error);
+        self.saveUsers(user, function(error, data) {
+          if(error) return next(error);
+          self.status_id(uid, function(error, count) {
+            if(error) return next(error);
+            self.status(uid, function(error, count) {
+              if(error) return next(error);
+              self.friend(uid, function(error, data) {
+                if(error) return next(error);
+                //self.follower(uid, function(error, data) {
+                //  if(error) return next(error);
+                  next();
+                //});
+              });
+            });
+          });
+        });
+      });
+    }).end(function(error, result) {
+      var last = stack.length > 1 ? queue[queue.length-1] : null;
+      self.provider.friend.page(stack[stack.length-1], null, null, last, function(error, data) {
+        if(error) return callback(error);
+        if(data.length > 0) {
+          queue = data.map(function(item, index, array) {return item.cid; });
+        } else {
+          var xuid, xcid;
+          if(stack.length > 1) {
+            xuid = stack[stack.length-2];
+            xcid = stack[stack.length-1];
+          } else {
+            xuid = stack[stack.length-1];
+            xcid = null;
+          }
+          console.log('[R] xuid: '+xuid+', xcid: '+xcid+', stack: ', stack);
+          self.provider.friend.next(xuid, xcid, function(error, data) {
+            if(error) return callback(error);
+            if(data && data.cid) stack.push(data.cid);
+            else return console.log('[R] handler friend next: ', data);
+          });
+        }
+        repeater();
+      });
     });
   }
 }
@@ -149,7 +385,7 @@ SinaRobot.prototype.user = function(uids, callback) {
   var statuses = [];
 
   async.list(uids).each(function(uid, next) {
-    self.provider.user.findById(uid, {_id: 0, id: 1}, function(error, data) {
+    self.provider.user.find(uid, {_id: 0, id: 1}, function(error, data) {
       if(error) return next(error);
       if(data) return next(error, data);
       self.crawler.getUser(uid, function(error, profile) {
@@ -166,267 +402,6 @@ SinaRobot.prototype.user = function(uids, callback) {
     if(error) return callback(error);
     self.savePosts(statuses, callback);
   });
-}
-
-
-SinaRobot.prototype.friend = function(uid, callback) {
-  var self = this;
-  self.provider.user.findById(uid, {_id: 0, id: 1, friends_count: 1}, function(error, user) {
-    if(error) return callback(error);
-    if(!user) return handler(uid, callback);
-    
-    console.log(user);
-    Metrics.total({uid: uid, friend: user.friends_count});
-    
-    self.provider.friend.count(uid, function(error, count) {
-      if(error) return callback(error);
-      
-      Metrics.count({uid: uid, friend: count});
-      console.log('[R] friends total='+user.friends_count+', count='+count);
-      
-      if( user.friends_count === count || (user.friends_count > count && user.friends_count < count + 5) ) {
-        console.log('[R] friends exsited and pass');
-        return callback(null, 0);
-      } else if(count > 0) {
-        self.provider.friend.remove(uid, function(error, data) {
-          if(error) return callback(error);
-          handler(uid, callback);
-        });
-      } else {
-        handler(uid, callback);
-      }
-    });
-  });
-
-  function handler(uid, callback) {
-    //获取所有好友的用户ID
-    self.crawler.getFriendsIds(uid, function(data, callback) {
-      self.provider.friend.save(uid, data, callback);
-    }, function(error, count) {
-      if(error) return callback(error);
-      var action = self.saveUsers.bind(self);
-      //获取所有好友的用户信息
-      self.crawler.getFriends(uid, action, callback);
-    });
-  }
-}
-
-SinaRobot.prototype.status_ids = function(uid, callback) {
-  var self = this;
-  console.log('[R] status uid:'+uid);
-  self.provider.user.findById(uid, {_id: 0, id: 1, statuses_count: 1}, function(error, user) {
-    if(error) return callback(error);
-    if(!user) return handler(uid, callback);
-    if(user.statuses_count < 10) return callback(null, 0);
-    
-    console.log(user);
-    Metrics.total({uid: user.id, status: user.statuses_count});
-    
-    self.provider.status.ids.count(uid, function(error, count) {
-      if(error) return callback(error);
-      
-      Metrics.count({uid: uid, status: count});
-      console.log('[R] status total='+user.statuses_count+', count='+count);
-      
-      if( user.statuses_count === count || (user.statuses_count > count && user.statuses_count < count + 5) ) {
-        console.log('[R] status exsited and pass');
-        return callback(null, count);
-      } else if(count > 0) {
-        self.provider.status.ids.remove(uid, function(error, data) {
-          if(error) return callback(error);
-          handler(uid, callback);
-        });
-      } else {
-        handler(uid, callback);
-      }
-    });
-  });
-  
-  function handler(uid, callback) {
-    self.crawler.getStatusIds(uid, function(data, callback) {
-      self.provider.status.ids.save(uid, data, callback);
-    }, callback);
-  }
-}
-
-SinaRobot.prototype.follower = function(uid, callback) {
-  var self = this;
-  self.provider.user.findById(uid, {_id: 0, id: 1, followers_count: 1}, function(error, user) {
-    if(error) return callback(error);
-    if(!user) return handler(uid, callback);
-    
-    console.log(user);
-    Metrics.total({uid: uid, follower: user.followers_count});
-    
-    self.provider.follower.count(uid, function(error, count) {
-      if(error) return callback(error);
-      
-      Metrics.count({uid: uid, follower: count});
-      console.log('[R] followers total='+user.followers_count+', count='+count);
-      
-      if(user.followers_count === count || (user.followers_count > count && user.followers_count < count + 5) ) {
-        console.log('[R] followers exsited and pass');
-        return callback(null, count);
-      } else if(count > 0) {
-        self.provider.follower.remove(uid, function(error, data) {
-          if(error) return callback(error);
-          handler(uid, callback);
-        });
-      } else {
-        handler(uid, callback);
-      }
-    });
-  });
-  
-  function handler(uid, callback) {
-    self.crawler.getFollowersIds(uid, function(data, callback) {
-      self.provider.follower.save(uid, data, callback);
-    }, function(error, count) {
-      if(error) return callback(error);
-      var action = self.saveUsers.bind(self);
-      self.crawler.getFollowers(uid, action, callback);
-    });
-  }
-}
-
-
-/**
- *  
-**/
-SinaRobot.prototype.WeiboHandler = function(uid, callback) {
-  var uids;
-  var self = this;
-  var queue = [uid];
-  worker(queue, 0);
-  
-  function worker(queue, counter) {
-    if(counter < queue.length) {
-      self.UserHandler(queue[counter], function(error, data) {
-        if(error) return callback(error);
-        worker(queue, counter+1);
-      });
-    } else {
-      var max = queue.length > 1 ? queue[queue.length-1] : null;
-      self.provider.friend.findPart({uid: queue[0]}, 100, null, max, function(error, data) {
-        if(error) return callback(error);
-        if(data.length > 0) {
-          uids = data.map(function(item, index, array) {return data.cid; });
-          queue = queue.concat(uids);
-        } else if(queue.length > 1) {
-          queue.shift();
-          worker(queue, counter);
-        } else {
-          callback(new Error('weibo user queye is empty'));
-        }
-      });
-    }
-  }
-}
-
-
-SinaRobot.prototype.UserHandler = function(uid, callback) {
-  var self = this;
-
-  var robot = async.list([
-    function(next) {
-      self.friend(uid, next);
-    },
-    function(next) {
-      self.follower(uid, next);
-    },
-    function(next) {
-      Metrics.node({friend: uid});
-      self.PostHandler(self.provider.friend, self.status.bind(self), uid, next);
-    },
-    function(next) {
-      Metrics.node({follower: uid});
-      self.PostHandler(self.provider.follower, self.status.bind(self), uid, next);
-    },
-    function(next) {
-      self.PostHandler(self.provider.status, self.repost.bind(self), uid, next);
-    },
-    function(next) {
-      self.PostHandler(self.provider.status, self.comment.bind(self), uid, next);
-    }
-  ]).call();
-  
-  self.provider.user.findById(uid, {id: 1, _id: 0}, function(error, profile) {
-    if(error) return callback(error);
-    if(profile) {
-      //metrics
-      Metrics.total({
-        uid: uid,
-        friend: profile.friends_count,
-        follower: profile.followers_count,
-        status: profile.statuses_count,
-        favourite: profile.favourites_count,
-        bi: profile.bi_followers_count,
-      });
-      
-      return robot.end(callback);
-    }
-
-    self.crawler.getUser(uid, function(error, profile) {
-      if(error) return callback(error);
-      //metrics
-      Metrics.total({
-        uid: uid,
-        friend: profile.friends_count,
-        follower: profile.followers_count,
-        status: profile.statuses_count,
-        favourite: profile.favourites_count,
-        bi: profile.bi_followers_count,
-      });
-      
-      self.saveUsers(profile, function(error, result) {
-        if(error) return callback(error);
-        robot.end(callback);
-      });
-    });
-  });
-}
-
-
-SinaRobot.prototype.PostHandler = function(collection, action, uid, callback) {
-  var self = this;
-  collection.findPart({uid: uid}, 100, repeater);
-
-  function repeater(error, data) {
-    if(error) return callback(error);
-    console.log('[R] post handler data length:'+data.length);
-    if(data.length < 1) {
-      console.log(data);
-      return callback(null, data);
-    }
-    async.list(data).each(function(item, next) {
-      action(item.cid, next);
-    }).end(false, function(error, result) {
-      collection.findPart({uid: uid}, 100, null, data[data.length-1], repeater);
-    });
-  }
-}
-
-
-SinaRobot.prototype.ProfileHandler = function(collection, uid, callback) {
-  var self = this;
-  var counter = 0;
-  collection.findPart({uid: uid}, 100, handler);
-  
-  function handler(error, data) {
-    if(error) return callback(error);
-    if(data.length < 1) return callback(null, counter);
-    var uids = [];
-    for(var i = 0; i < data.length; ++i) { uids.push(data[i].cid); }
-
-    self.profiles(uids, function(error, count) {
-      if(error) callback(error);
-      async.list(uids).each(self.UserHandler.bind(self)).end(function(error, data) {
-        if(error) callback(error);
-        counter += 1;
-        collection.findPart({uid: uid}, 100, null, data[--i], handler);
-      });
-    });
-  }
 }
 
 
@@ -448,9 +423,9 @@ SinaRobot.prototype.saveUsers = function(users, callback) {
       delete users[i].status;
     }
   }
-  
+
   console.log('[R] save user:'+users.length);
-  
+
   if(statuses.length > 0) {
     self.savePosts(statuses, handler);
   } else {
@@ -522,8 +497,8 @@ SinaRobot.prototype.savePosts = function(posts, callback) {
     handler();
   }
   //metrics
-  if(counter.repost > 1) Metrics.count(counter);
-  if(statuses.length > 1) Metrics.count({uid: statuses[0].uid, status: statuses.length});
+  //if(counter.repost > 1) Metrics.count(counter);
+  //if(statuses.length > 1) Metrics.count({uid: statuses[0].uid, status: statuses.length});
   
   console.log('[R] save status:'+statuses.length+', repost:'+counter.repost+', comment:'+comments.length);
   
@@ -542,14 +517,3 @@ SinaRobot.prototype.savePosts = function(posts, callback) {
     }
   }
 }
-
-
-Function.prototype.curry = function() {
-  var fn = this;
-  var args = Array.prototype.slice.call(arguments);
-  return function() {
-    return fn.apply(this, args.concat(Array.prototype.slice.call(arguments, 0)));
-  };
-}
-
-

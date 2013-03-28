@@ -87,10 +87,14 @@
     
     render: function() {
       this.$el.html( $('#t-collection-header').html() );
-      
       _(this.collection).each(function(model) {
+        //index name and remove default _id index
         model.indexSizes = Object.keys(model.indexSizes);
         model.indexSizes.shift();
+        //mongodb 2.2
+        if(typeof model.systemFlags === 'undefined') model.systemFlags = 0;
+        if(typeof model.userFlags === 'undefined') model.userFlags = 0;
+        
         this.$el.append(this.template(model));
       }, this);
       

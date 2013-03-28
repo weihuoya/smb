@@ -23,10 +23,13 @@ var weibo = new Weibo(true);
 var robot = new Robot(weibo);
 var oauthHandler = weibo.authenticate(
   {successRedirect: '/', failureRedirect: '/user/login'},
-  //robot.run( function(error, result) { assert.equal(null, error) } )
-  function(error, params) {
-    utest.test(weibo);
-  }
+  robot.run( function(error, result) {
+    assert.equal(null, error) ;
+    console.log('[A] robot finished!');
+  })
+  //function(error, params) {
+  //  utest.test(weibo);
+  //}
 );
 
 app.configure(function() {

@@ -112,7 +112,12 @@ SinaCrawler.prototype.getStatuses = function(uid, since_id, max_id, callback, co
 
 SinaCrawler.prototype.getStatusIds = function(uid, since_id, max_id, callback, complete) {
   var action = this.weibo.getUserTimelineIds.bind(this.weibo);
-  return this.page_handler(uid, since_id, max_id, action, callback, complete);
+  var wrapper = function(data, next) {
+    var uids = [];
+    data.forEach(function(elem, index, array) { uids.push( parseInt(elem) ); });
+    callback(uids, next);
+  }
+  return this.page_handler(uid, since_id, max_id, action, wrapper, complete);
 }
 
 SinaCrawler.prototype.getHomeStatuses = function(uid, since_id, max_id, callback, complete) {
@@ -134,7 +139,7 @@ SinaCrawler.prototype.getComments = function(sid, since_id, max_id, callback, co
 SinaCrawler.prototype.cursor_handler = function(uid, count, action, callback, complete) {
   var self = this;
   var counter = 0;
-  var retry = 3;
+  var retry = 1;
   var paging = {count: count, cursor: 0};
   
   worker();
@@ -150,8 +155,12 @@ SinaCrawler.prototype.cursor_handler = function(uid, count, action, callback, co
     for(var i in data) {
       if(Array.isArray(data[i])) {
         if(data[i].length < 1) {
-          if(--retry === 0) complete(null, counter);
-          else repeater();
+          if(--retry === 0) {
+            complete(null, counter);
+          } else {
+            console.log('[C] crawler retry: '+retry);
+            repeater();
+          }
         } else {
           counter += data[i].length;
           callback(data[i], repeater);
@@ -166,6 +175,7 @@ SinaCrawler.prototype.cursor_handler = function(uid, count, action, callback, co
         paging.cursor = data.next_cursor;
         setTimeout(worker, self.timeout);
       } else {
+        console.log('[C] crawler cursor count: ' + counter);
         complete(null, counter);
       }
     }
@@ -175,7 +185,7 @@ SinaCrawler.prototype.cursor_handler = function(uid, count, action, callback, co
 
 SinaCrawler.prototype.page_handler = function(id, since_id, max_id, action, callback, complete) {
   var self = this;
-  var retry = 3;
+  var retry = 1;
   var counter = 0;
   var paging = {count: 100, page: 1};
 
@@ -206,10 +216,19 @@ SinaCrawler.prototype.page_handler = function(id, since_id, max_id, action, call
     for(var x in data) {
       if(Array.isArray(data[x])) {
         if(data[x].length < 1) {
-          if(--retry === 0) complete(null, counter);
-          else repeater();
+          if(--retry === 0) {
+            complete(null, counter);
+          } else {
+            console.log('[C] crawler retry: '+retry);
+            repeater();
+          }
         } else {
           counter += data[x].length;
+          if(typeof data[x][0] === 'object') {
+            console.log('[C] crawler page handler id: ['+ data[x][0].id +', '+ data[x][data[x].length-1].id +']');
+          } else {
+            console.log('[C] crawler page handler id: ['+ data[x][0] +', '+ data[x][data[x].length-1] +']');
+          }
           callback(data[x], repeater);
         }
         break;
@@ -222,6 +241,7 @@ SinaCrawler.prototype.page_handler = function(id, since_id, max_id, action, call
         paging.page += 1;
         setTimeout(worker, self.timeout);
       } else {
+        console.log('[C] crawler page count: ' + counter);
         complete(null, counter);
       }
     }

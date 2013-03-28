@@ -63,6 +63,9 @@ Variety.prototype.stats = function(name, callback) {
           var x = stats.ns.lastIndexOf('.')+1;
           stats.ns = stats.ns.substr(x);
           stats.avgObjSize = Math.floor(stats.avgObjSize);
+          //mongodb 2.2
+          if(typeof stats.systemFlags === 'undefined') model.systemFlags = 0;
+          if(typeof stats.userFlags === 'undefined') model.userFlags = 0;
           vector.push(stats);
           next();
         });
