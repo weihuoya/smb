@@ -115,6 +115,11 @@ SinaCrawler.prototype.getStatusIds = function(uid, since_id, max_id, callback, c
   return this.page_handler(uid, since_id, max_id, action, callback, complete);
 }
 
+SinaCrawler.prototype.getHomeStatuses = function(uid, since_id, max_id, callback, complete) {
+  var action = this.weibo.getHomeTimeline.bind(this.weibo);
+  return this.page_handler(uid, since_id, max_id, action, callback, complete);
+}
+
 SinaCrawler.prototype.getReposts = function(sid, since_id, max_id, callback, complete) {
   var action = this.weibo.getRepostTimeline.bind(this.weibo);
   return this.page_handler(sid, since_id, max_id, action, callback, complete);

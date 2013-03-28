@@ -76,7 +76,18 @@ SinaProvider.prototype.create = function(callback) {
       });
     });
   });
+}
+
+
+SinaProvider.prototype.timeline = function(id, callback) {
+  var timeline = new Post(this.db, 'timeline_' + id);
   
+  timeline.create(function (error, collection) {
+    if(error)
+      callback(error);
+    else
+      callback(null, timeline);
+  });
 }
 
 

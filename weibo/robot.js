@@ -112,7 +112,7 @@ SinaRobot.prototype.comment = function(sid, callback) {
   var self = this;
   self.provider.status.findById(sid, {_id: 0, id: 1, comments_count: 1}, function(error, status) {
     if(error) return callback(error);
-    if(status) return handler(sid, callback);
+    if(!status) return handler(sid, callback);
     
     console.log(status);
     Metrics.total({sid: sid, uid: status.uid, comment: status.comments_count});
@@ -245,11 +245,7 @@ SinaRobot.prototype.status_ids = function(uid, callback) {
   function handler(uid, callback) {
     self.crawler.getStatusIds(uid, function(data, callback) {
       self.provider.status.ids.save(uid, data, callback);
-    }, function(error, count) {
-      if(error) return callback(error);
-      var action = self.saveUsers.bind(self);
-      self.crawler.getFollowers(uid, action, callback);
-    });
+    }, callback);
   }
 }
 
