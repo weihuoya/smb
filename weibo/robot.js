@@ -116,6 +116,7 @@ function SinaRobot(weibo) {
           
           function repeater(min, max) {
             self.provider.status.id.page(uid, 50, min?min:null, max?max:null, function(error, data) {
+            self.provider.status.id.page(uid, 50, min?min:null, max?max:null, function(error, data) {
               if(error) return callback(error);
               
               if(Array.isArray(data) && data.length > 0) {
@@ -292,6 +293,10 @@ function SinaRobot(weibo) {
           bundle[x].count(id, function(error, count) {
             if(error) return callback(error);
             console.log('[R] user '+x+' count: '+value+', db '+x+' count: '+count);
+            
+            //Metrics[x].userCount = value;
+            //Metrics[x].dbCount = count;
+            
             if(value === count || Math.abs(value - count) < 10)
               return callback(null, 0);
             else
@@ -325,56 +330,65 @@ SinaRobot.prototype.run = function(callback) {
 
 
 SinaRobot.prototype.handler = function(user, callback) {
-  var self = this, stack = [user], queue = [user];
+  var self = this, last = null, stack = [user], queue = [user];
   
   repeater();
   
   function repeater() {
-    async.list(queue).each(function(uid, next) {
-      console.log('[R] robot handler uid: '+uid);
-      self.crawler.getUser(uid, function(error, user) {
+    async.list( queue ).each( worker ).end( finalize );
+  }
+
+  function worker(uid, next) {
+    console.log('[R] robot handler uid: '+uid);
+    self.crawler.getUser(uid, function(error, user) {
+      if(error) return next(error);
+      //Metric.user();
+      self.saveUsers(user, function(error, data) {
         if(error) return next(error);
-        self.saveUsers(user, function(error, data) {
+        self.status_id(uid, function(error, count) {
           if(error) return next(error);
-          self.status_id(uid, function(error, count) {
+          self.status(uid, function(error, count) {
             if(error) return next(error);
-            self.status(uid, function(error, count) {
+            self.friend(uid, function(error, data) {
               if(error) return next(error);
-              self.friend(uid, function(error, data) {
-                if(error) return next(error);
-                //self.follower(uid, function(error, data) {
-                //  if(error) return next(error);
-                  next();
-                //});
-              });
+              //self.follower(uid, function(error, data) {
+              //  if(error) return next(error);
+                next();
+              //});
             });
           });
         });
       });
-    }).end(function(error, result) {
-      var last = stack.length > 1 ? queue[queue.length-1] : null;
-      self.provider.friend.page(stack[stack.length-1], null, null, last, function(error, data) {
-        if(error) return callback(error);
-        if(data.length > 0) {
-          queue = data.map(function(item, index, array) {return item.cid; });
+    });
+  }
+  
+  function finalize(error, result) {
+    self.provider.friend.page(stack[stack.length-1], null, null, last, function(error, data) {
+      if(error) return callback(error);
+      if(data.length > 0) {
+        queue = data.map(function(item, index, array) {return item.cid; });
+        last = queue[queue.length-1];
+      } else {
+        var xuid, xcid;
+        if(stack.length > 1) {
+          xuid = stack[stack.length-2];
+          xcid = stack[stack.length-1];
         } else {
-          var xuid, xcid;
-          if(stack.length > 1) {
-            xuid = stack[stack.length-2];
-            xcid = stack[stack.length-1];
-          } else {
-            xuid = stack[stack.length-1];
-            xcid = null;
-          }
-          console.log('[R] xuid: '+xuid+', xcid: '+xcid+', stack: ', stack);
-          self.provider.friend.next(xuid, xcid, function(error, data) {
-            if(error) return callback(error);
-            if(data && data.cid) stack.push(data.cid);
-            else return console.log('[R] handler friend next: ', data);
-          });
+          xuid = stack[stack.length-1];
+          xcid = null;
         }
-        repeater();
-      });
+        //console.log('[R] xuid: '+xuid+', xcid: '+xcid+', stack: ', stack);
+        self.provider.friend.next(xuid, xcid, function(error, data) {
+          if(error) return callback(error);
+          if(data && data.cid) {
+            stack.push(data.cid);
+            last = null;
+          } else {
+            return console.log('[R] handler friend next: ', data);
+          }
+        });
+      }
+      repeater();
     });
   }
 }

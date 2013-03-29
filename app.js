@@ -13,7 +13,6 @@ var express = require('express')
   , path = require('path')
   , assert = require('assert')
   , utest = require('./test/test')
-  //, memwatch = require('memwatch')
   //, Crawler = require('./weibo/crawler')
   , Weibo = require('./weibo/weibo')
   , Robot = require('./weibo/robot');
@@ -24,7 +23,7 @@ var robot = new Robot(weibo);
 var oauthHandler = weibo.authenticate(
   {successRedirect: '/', failureRedirect: '/user/login'},
   robot.run( function(error, result) {
-    assert.equal(null, error) ;
+    assert.equal(null, error);
     console.log('[A] robot finished!');
   })
   //function(error, params) {
