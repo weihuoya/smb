@@ -48,6 +48,20 @@ Variety.prototype.list = function(callback) {
 }
 
 
+Variety.prototype.info = function(callback) {
+  var self = this;
+  var db = new Db('local', new Server(self.host, self.port, {'auto_reconnect': false, 'poolSize': 1}), {safe: false});
+  
+  db.open(function(error, db) {
+    if(error) return callback(error);
+    db.admin(function(error, admin) {
+      if(error) return callback(error);
+      admin.buildInfo(callback);
+    });
+  });
+}
+
+
 Variety.prototype.stats = function(name, callback) {
   var self = this;
   var db = new Db(name, new Server(self.host, self.port, {'auto_reconnect': false, 'poolSize': 1}), {safe: false});
@@ -63,6 +77,9 @@ Variety.prototype.stats = function(name, callback) {
           var x = stats.ns.lastIndexOf('.')+1;
           stats.ns = stats.ns.substr(x);
           stats.avgObjSize = Math.floor(stats.avgObjSize);
+          //index name and remove default _id index
+          stats.indexSizes = Object.keys(stats.indexSizes);
+          stats.indexSizes.shift();
           //mongodb 2.2
           if(typeof stats.systemFlags === 'undefined') stats.systemFlags = 0;
           if(typeof stats.userFlags === 'undefined') stats.userFlags = 0;
@@ -76,120 +93,6 @@ Variety.prototype.stats = function(name, callback) {
     });
   });
 }
-
-
-Variety.prototype.user = function(id, callback) {
-  
-}
-
-/*
-{
-  databases: [{name, sizeOnDisk, empty}],
-  totalSize: 0
-}
-
-Variety.prototype.list = function(callback) {
-  var self = this;
-  
-  self.db.admin(function(error, admin) {
-    if(error) return callback(error);
-    admin.listDatabases(function(error, dbs) {
-      if(error) return callback(error);
-      
-      console.log('mongodb total size: '+dbs['totalSize']);
-      
-      async.list(dbs['databases'])
-      .each(function(item, next) {
-        console.log(item);
-        self.stats(item.name, next);
-      })
-      .end(false, function(error, value) {
-        
-      });
-      
-    });
-  });
-}
-
-
-Variety.prototype.stats = function(name, callback) {
-  var self = this;
-  var db = new Db(name, new Server(self.host, self.port, {'auto_reconnect': false, 'poolSize': 1}), {safe: false});
-
-  db.open(function(error, db){
-    if(error) return callback(error);
-    
-    db.collectionNames(function(error, items) {
-      if(error) return callback(error);
-      console.log(items);
-    });
-    
-    db.collections(function(error, collections) {
-      if(error) return callback(error);
-      
-      async.list(collections).each(function(item, next) {
-        item.stats(function(error, stats) {
-          if(error) next(error);
-          console.log(stats);
-          next();
-        });
-      }).end(false, callback);
-      
-    });
-    
-    
-  });
-}
-
-
-// args is for internal usage only
-Variety.prototype.each = function( obj, callback, args ) {
-  var name,
-    i = 0,
-    length = obj.length,
-    isObj = length === undefined || typeof obj === 'function';
-
-  if ( args ) {
-    if ( isObj ) {
-      for ( name in obj ) {
-        if ( callback.apply( obj[ name ], args ) === false ) {
-          break;
-        }
-      }
-    } else {
-      for ( ; i < length; ) {
-        if ( callback.apply( obj[ i++ ], args ) === false ) {
-          break;
-        }
-      }
-    }
-
-  // A special, fast, case for the most common use of each
-  } else {
-    if ( isObj ) {
-      for ( name in obj ) {
-        if ( callback.call( obj[ name ], name, obj[ name ] ) === false ) {
-          break;
-        }
-      }
-    } else {
-      for ( ; i < length; ) {
-        if ( callback.call( obj[ i ], i, obj[ i++ ] ) === false ) {
-          break;
-        }
-      }
-    }
-  }
-  return obj;
-}
-*/
-
-
-
-
-
-
-
 
 
 

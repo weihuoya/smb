@@ -43,6 +43,7 @@ function SinaRobot(weibo) {
                 if(error) return callback(error);
                 console.log('[R] lower count: '+count1+', upper count: '+count2+', total count: '+(count1 + count2));
                 counter = count1 + count2;
+                //callback(null, count1 + count2);
                 verify(id, null, null, function(error, data1) {
                   if(error) return callback(error);
                   repair(id, data1, function(error, data2) {
@@ -114,7 +115,7 @@ function SinaRobot(weibo) {
           repeater(min, max);
           
           function repeater(min, max) {
-            self.provider.status.id.range(uid, 50, min?min:null, max?max:null, function(error, data) {
+            self.provider.status.id.page(uid, 50, min?min:null, max?max:null, function(error, data) {
               if(error) return callback(error);
               
               if(Array.isArray(data) && data.length > 0) {
@@ -328,7 +329,6 @@ SinaRobot.prototype.run = function(callback) {
 
 
 SinaRobot.prototype.handler = function(user, callback) {
-  //var sample = metrics.robot.sample();
   var self = this, last = null, stack = [user], queue = [user];
   
   repeater();
@@ -339,28 +339,19 @@ SinaRobot.prototype.handler = function(user, callback) {
 
   function worker(uid, next) {
     console.log('[R] robot handler uid: '+uid);
-    //sample.id = uid;
-    
     self.crawler.getUser(uid, function(error, user) {
       if(error) return next(error);
       //Metric.user();
       self.saveUsers(user, function(error, data) {
         if(error) return next(error);
-        //sample.name = data.screen_name;
-        
         self.status_id(uid, function(error, count) {
           if(error) return next(error);
-          
           self.status(uid, function(error, count) {
             if(error) return next(error);
-            //sample.status = count;
-            
-            self.friend(uid, function(error, count) {
+            self.friend(uid, function(error, data) {
               if(error) return next(error);
-              //sample.friend = count;
               //self.follower(uid, function(error, data) {
               //  if(error) return next(error);
-                //metrics.robot.add(sample);
                 next();
               //});
             });
@@ -371,7 +362,7 @@ SinaRobot.prototype.handler = function(user, callback) {
   }
   
   function finalize(error, result) {
-    self.provider.friend.range(stack[stack.length-1], null, null, last, function(error, data) {
+    self.provider.friend.page(stack[stack.length-1], null, null, last, function(error, data) {
       if(error) return callback(error);
       if(data.length > 0) {
         queue = data.map(function(item, index, array) {return item.cid; });
@@ -381,8 +372,6 @@ SinaRobot.prototype.handler = function(user, callback) {
         if(stack.length > 1) {
           xuid = stack[stack.length-2];
           xcid = stack[stack.length-1];
-          
-          //sample.pid = xuid;
         } else {
           xuid = stack[stack.length-1];
           xcid = null;
@@ -530,7 +519,7 @@ SinaRobot.prototype.savePosts = function(posts, callback) {
     if(error) return callback(error);
     if(comments.length > 0) {
       //metrics
-      //Metrics.count({sid: comments[0].sid, comment: comments.length});
+      Metrics.count({sid: comments[0].sid, comment: comments.length});
       
       self.provider.comment.save(comments, function(error, result) {
         if(error) return callback(error);

@@ -16,25 +16,9 @@ var commandMap = {
 };
 
 module.exports = function() {
-  var proxy = require('./proxy');
-  var type = 'MongoDB';
-
   var collsCount = 0;
   var colls = {};
   var collNameRegex = /[^\.\$]+\.([^\.\$]+)/;
-  
-  var nt = {
-    error: function(error) {
-      throw error;
-    },
-    
-    metric: function(conn, label, value, unit, type) {
-      console.log('['+conn+']');
-      console.log(label+'='+value+'('+unit+')');
-    }
-  };
-  
-  proxy.init(nt);
   
   function truncate(args) {
     if(!args) return undefined;
@@ -94,90 +78,6 @@ module.exports = function() {
     };
   }
 
-  function done(mClient, err) {
-    try {
-      if(mClient) mClient.close()
-    }
-    catch(err2) {
-      nt.error(err2);
-    }
-
-    if(err) nt.error(err);      
-  }
-
-  function loadStats(coll) {
-    var mClient = new Db(
-      coll.dbName, 
-      new Server(coll.host, coll.port, {'auto_reconnect': false, 'poolSize': 1}), 
-      {safe: false}
-    );
-    
-    mClient.open(function(err) {
-      if(err) return done(mClient, err);
-
-      try {
-        mClient.collection(coll.collName, function(err, collection) {
-          if(err) return done(mClient, err);
-
-          try {
-            collection.stats(function(err, stats) {
-              if(err) return done(mClient, err);
-              if(!stats) return done(mClient);
-
-              try {
-                function metric(label, key, unit) {
-                  var numVal = parseFloat(stats[key]);
-                  if(typeof(numVal) !== 'number') return;
-                  if(unit === 'KB') numVal /= 1000;
-   
-                  nt.metric(
-                    'MongoDB collection ' + 
-                      coll.host + ':' + 
-                      coll.port + ':' + 
-                      coll.dbName + ':' + 
-                      coll.collName,                     
-                    label, 
-                    numVal, 
-                    unit,
-                    'gauge');
-                }
-
-                metric('Object count' ,'count' , null);
-                metric('Collection size' ,'size' , 'KB');
-                metric('Average object size' ,'avgObjSize' , 'KB');
-                metric('Storage size' ,'storageSize' , 'KB');
-                metric('Index size' ,'totalIndexSize' , 'KB');
-                metric('Padding factor' ,'paddingFactor' , null);
-
-                done(mClient);
-              }
-              catch(err) {
-                done(mClient, err);
-              }
-            });
-          }
-          catch(err) {
-            done(mClient, err);
-          }
-        });
-      }
-      catch(err) {
-        done(mClient, err);
-      }
-    });
-  }
-
-  /*setInterval(function() {
-    for(var address in colls) {
-      try {
-        loadStats(colls[address]);
-      }
-      catch(err) {
-        nt.error(err);
-      }
-    }
-  }, 60000);*/
-
   internalCommands.forEach(function(internalCommand) {
     proxy.before(Db.prototype, internalCommand, function(obj, args) {
       var command = (args && args.length > 0) ? args[0] : undefined;
@@ -213,7 +113,7 @@ module.exports = function() {
         var query = command.query ? truncate(JSON.stringify(command.query)) : '{}';
         var error = proxy.getErrorMessage(args);
 
-        /*var sample = {};
+        /*
         sample['Connection'] = conn;
         sample['Command'] = {
           collectionName: command.collectionName, 
@@ -222,7 +122,8 @@ module.exports = function() {
           queryOptions: command.queryOptions, 
           numberToSkip: command.numberToSkip,
           numberToReturn: command.numberToReturn
-        };*/
+        };
+        */
         console.log('[M] '+command.collectionName+'|'+commandName+'|'+query+'|'+command.numberToReturn);
       });
     });

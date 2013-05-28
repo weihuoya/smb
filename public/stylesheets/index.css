@@ -1,0 +1,422 @@
+body {
+  padding-top: 41px;
+  padding-bottom: 10px;
+}
+.sidebar-nav {
+  padding: 9px 0;
+}
+
+.nav li:first-child  a {
+  padding-left: 0;
+}
+
+#content {
+  padding-top: 20px;
+}
+
+/*login view*/
+div#login {
+  margin: 40px auto;
+}
+div#login form {
+  margin: auto;
+  width: 400px;
+  line-height: 18px;
+}
+div#login form h1 {
+  margin: 0 auto;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  background-color: #5590f1;
+  border: 1px solid #5590f1;
+  border-radius: 3px 3px 0 0;
+  padding: 8px 18px;
+}
+div#login div.formbody {
+  padding: 2em;
+  background-color: #f5f5f5;
+  overflow: hidden;
+  border-style: solid;
+  border-width: 0px 1px 2px;
+  border-color: #e9f1f4 #d8dee2 #d8dee2;
+  border-radius: 0 0 3px 3px;
+}
+div#quick_signin {
+  width: 100%;
+  font-size: 14px;
+  margin-top: 10px;
+  padding-top: 5px;
+  border-top: 2px dotted #fff;
+}
+div#quick_signin a {
+  padding-left: 6px;
+}
+div#quick_signin img {
+  vertical-align: middle;
+}
+#login form label {
+  font-size: 110%;
+  color: #2f424e;
+  text-shadow: 0 -1px 0 rgba(100,100,100,0.1);
+  cursor: text;
+}
+#login form input.text,
+#login form textarea {
+  padding: 5px;
+  margin: 0.2em 0 1em 0;
+  background-color: #fff;
+  display: block;
+  width: 330px;
+}
+#login form input[type="submit"] {
+  display: block;
+  height: 30px;
+  position: relative;
+  left: 292px;
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 12px;
+  color: #333;
+  text-shadow: 1px 1px 0 #fff;
+  white-space: nowrap;
+  border: none;
+  outline: none;
+  overflow: visible;
+  background-color: #e1e1e1;
+  background-image: -moz-linear-gradient(#fff, #e1e1e1);
+  background-image: -webkit-linear-gradient(#fff, #e1e1e1);
+  background-image: linear-gradient(#fff, #e1e1e1);
+  background-repeat: repeat-x;
+  border-bottom: 1px solid #ebebeb;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  cursor: pointer;
+  padding: 0px 13px;
+  -webkit-font-smoothing: subpixel-antialiased !important;
+}
+#login form input[type="submit"]:hover {
+  color: #fff;
+  text-shadow: -1px -1px 0 rgba(0,0,0,0.3);
+  border-bottom-color: #0770a0;
+  background-color: #0770a0;
+  background-image: -moz-linear-gradient(#0ca6dd, #0770a0);
+  background-image: -webkit-linear-gradient(#0ca6dd, #0770a0);
+  background-image: linear-gradient(#0ca6dd, #0770a0);
+  background-repeat: repeat-x;
+}
+
+/*status view*/
+table, td, th {
+  border: 1px solid #CED5DA;
+}
+table {
+  border-collapse: collapse;
+  margin: 5px auto;
+}
+th {
+  background: #D5E0E6;
+  height: 16px;
+  padding: 4px 8px;
+  text-align: left;
+}
+td {
+  padding: 4px;
+  text-align: center;
+}
+
+/*user view*/
+div.search-box form {
+  float: none;
+  overflow: hidden;
+  width: 100%;
+}
+div.search-box form input {
+  width: 65%;
+  margin: 0 auto;
+  display: block;
+}
+div.search-box form button.clear {
+  position: absolute;
+  top: 4px;
+  right: 14%;
+  line-height: 20px;
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 20px;
+  color: #000000;
+  text-shadow: 0 1px 0 #ffffff;
+  opacity: 0.2;
+  filter: alpha(opacity=20);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  -webkit-appearance: none;
+  z-index: 1;
+}
+
+.user-item {
+  margin: 10px 0;
+}
+.user-item:hover {
+  background-color: #e9f1f4;
+  cursor: pointer;
+}
+.person {
+  margin: 0;
+}
+.person dt {
+  float: left;
+  margin: 0 10px;
+}
+.person dt img {
+  border-radius: 5px;
+}
+.person ul {
+  list-style-type: none;
+  margin: 2px 0;
+}
+.person li {
+  float: left;
+  margin: 0px 2px 0 0;
+  padding: 1px 5px;
+  font-size: 0.8em;
+}
+.person strong {
+  text-decoration: none;
+  font-weight: bold;
+  color: #08c;
+}
+
+.pagination {
+  text-align: center;
+  margin: 0;
+}
+.pagination ul {
+  display: inline-block;
+  margin: 0 auto;
+}
+.pagination ul > .disabled > a {
+  background-color: #fff;
+}
+.pagination form {
+  position: relative;
+  float: left;
+  margin: 0;
+}
+.pagination form input {
+  width: 60px;
+  margin: 0;
+}
+
+/* user view calendar */
+#calendar-graph {
+  width: 99%;
+  height: 107px;
+}
+#calendar-graph rect.day.active {
+  opacity: 1;
+}
+#calendar-graph text.month {
+  font-size: 10px;
+  fill: #aaa;
+}
+#calendar-graph text.wday {
+  fill: #ccc;
+  font-size: 9px;
+}
+#calendar-graph rect.day:hover {
+  stroke: #888;
+  stroke-width: 1px;
+}
+#calendar-graph rect.day {
+  shape-rendering: crispedges;
+}
+.capped-box {
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  margin-bottom: 20px;
+}
+.contrib-header {
+  background-color: #f7f7f7;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+  border-bottom: 1px solid #ddd;
+}
+.contrib-header h3 {
+  float: left;
+  font-size: 15px;
+  margin: 0 10px;
+}
+.contrib-header div {
+  float: right;
+  padding: 0 5px;
+}
+.contrib-header div a {
+  font-size: 15px;
+  font-weight: bold;
+  padding: 0 5px;
+  line-height: 40px;
+  cursor: pointer;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin: 0 3px;
+  color: #ddd;
+}
+.contrib-header div a:hover {
+  text-decoration: none;
+  color: #999;
+  border-color: #999;
+}
+.contrib-footer {
+  padding: 0px 10px 10px 10px;
+}
+.contrib-footer .contrib-info {
+  font-size: 11px;
+  color: #999;
+  float: left;
+}
+.contrib-legend {
+  font-size: 11px;
+  color: #777;
+  font-weight: bold;
+  float: right;
+}
+.contrib-legend span {
+  font-weight: normal;
+  color: #999;
+}
+.contrib-legend ul {
+  display: inline-block;
+  list-style: none;
+  margin: 0 5px;
+}
+.contrib-legend ul li {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+}
+.contrib-details {
+  clear: right;
+}
+.contrib-details div:first-child {
+  border-left: none;
+}
+.contrib-details div {
+  text-align: center;
+  color: #999;
+}
+.contrib-details div {
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  padding: 10px 0 0 0;
+  text-align: center;
+  border-left: 1px solid #ddd;
+  border-top: 1px solid #ddd;
+  color: #999;
+}
+.grid .col {
+  display: table-cell;
+  width: 1%;
+}
+.contrib-details div .num {
+  font-weight: bold;
+  font-size: 16px;
+  display: block;
+  color: #333;
+}
+.contrib-details div .lbl {
+  display: block;
+  font-weight: bold;
+  padding: 10px 0;
+  color: #777;
+  border-top: 1px solid #f7f7f7;
+  margin-top: 10px;
+  font-size: 11px;
+}
+/*home view*/
+.masthead {
+padding: 70px 0 80px;
+margin-bottom: 0;
+color: #fff;
+}
+
+.svg-tip {
+  padding:10px;
+  background:#222;
+  color:#bbb;
+  font-size:12px;
+  width:140px;
+  position:absolute;
+  z-index:99999;
+  text-align:center;
+  border-radius:2px;
+  box-shadow:2px 2px 2px rgba(0,0,0,0.2);
+  display:none
+}
+
+.svg-tip strong {
+  color:#ddd
+}
+
+.svg-tip.is-visible {
+  display:block
+}
+
+.svg-tip:after {
+  box-sizing:border-box;
+  display:inline;
+  font-size:12px;
+  width:100%;
+  line-height:1;
+  color:rgba(0,0,0,0.8);
+  content:"\25BC";
+  position:absolute;
+  text-align:center;
+  -webkit-font-smoothing:antialiased;
+  text-shadow:2px 2px 2px rgba(0,0,0,0.2);
+  margin:-2px 0 0 0;
+  top:100%;
+  left:0
+}
+
+.svg-tip.n:after {
+  text-shadow:2px 2px 2px rgba(0,0,0,0.2);
+  margin:-2px 0 0 0;
+  top:100%;
+  left:0
+}
+
+#subhead {
+position: relative;
+padding: 40px 0;
+color: #fff;
+text-align: center;
+text-shadow: 0 1px 3px rgba(0,0,0,.4), 0 0 30px rgba(0,0,0,.075);
+background: #020031;
+background: -moz-linear-gradient(45deg, #020031 0%, #6d3353 100%);
+background: -webkit-gradient(linear, left bottom, right top, color-stop(0%,#020031), color-stop(100%,#6d3353));
+background: -webkit-linear-gradient(45deg, #020031 0%,#6d3353 100%);
+background: -o-linear-gradient(45deg, #020031 0%,#6d3353 100%);
+background: -ms-linear-gradient(45deg, #020031 0%,#6d3353 100%);
+background: linear-gradient(45deg, #020031 0%,#6d3353 100%);
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#020031', endColorstr='#6d3353',GradientType=1 );
+-webkit-box-shadow: inset 0 3px 7px rgba(0,0,0,.2), inset 0 -3px 7px rgba(0,0,0,.2);
+-moz-box-shadow: inset 0 3px 7px rgba(0,0,0,.2), inset 0 -3px 7px rgba(0,0,0,.2);
+box-shadow: inset 0 3px 7px rgba(0,0,0,.2), inset 0 -3px 7px rgba(0,0,0,.2);
+}
+
+#subhead::after {
+content: '';
+display: block;
+position: absolute;
+top: 0;
+right: 0;
+bottom: 0;
+left: 0;
+background: url(/images/bs-docs-masthead-pattern.png) repeat center center;
+opacity: .4;
+}

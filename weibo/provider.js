@@ -107,26 +107,55 @@ function User(db) {
     EnsureCollection(this.db, this.name, {id: 1, cid: 1}, {unique:true, background:true, dropDups:true}, callback);
   }
   
-  this.count = function(callback){
-    this.db.collection(this.name, function(error, collection) {
-      if(error) return callback(error);
-      collection.find().count(callback);
-    });
-  }
-  
-  this.find = function(id, fields, callback) {
-    var query = {id: id};
-    if(typeof fields === 'function') {
-      callback = fields;
-      fields = {};
+  this.count = function(user, callback){
+    var query = {};
+    if(typeof user === 'function') {
+      callback = user;
+    } else if(typeof user === 'string') {
+      query = { screen_name: { $regex: '.*'+user+'.*', $options: 'i' } };
     }
     this.db.collection(this.name, function(error, collection) {
       if(error) return callback(error);
-      collection.findOne(query, {fields: fields},callback);
+      collection.find(query).count(callback);
     });
   }
   
-  this.page = function(count, since, max, callback) {
+  this.find = function(user, fields, callback) {    
+    if(typeof fields === 'function') {
+      callback = fields;
+      fields = {
+        _id: 0, id: 1, screen_name: 1, profile_image_url: 1, 
+        followers_count: 1, friends_count: 1, statuses_count: 1
+      };
+    }
+
+    this.db.collection(this.name, function(error, collection) {
+      if(error) return callback(error);
+      if(typeof user === 'number') {
+        collection.findOne({id: user}, {fields: fields}, callback);
+      } else if(typeof user === 'string') {
+        collection.find( { screen_name: { $regex: '.*'+user+'.*', $options: 'i' } }, {fields: fields}).toArray(callback);
+      }
+    });
+  }
+  
+  this.page = function(index, count, user, callback) {
+    var query = {};
+    if(typeof user === 'function') {
+      callback = user;
+    } else if(typeof user === 'string') {
+      query = {screen_name: { $regex: '.*'+user+'.*', $options: 'i' } }
+    }
+    this.db.collection(this.name, function(error, collection) {
+      if(error) return callback(error);
+      var cursor = collection.find(query, {fields: {
+        _id: 0, id: 1, screen_name: 1, profile_image_url: 1, 
+        followers_count: 1, friends_count: 1, statuses_count: 1
+        }}).sort({id: -1}).skip(index * count).limit(count).toArray(callback);
+    });
+  }
+  
+  this.range = function(count, since, max, callback) {
     if(!callback) {
       if(typeof max === 'function') {
         callback = max;
@@ -143,18 +172,24 @@ function User(db) {
     var query = {};
     
     if(since) {
+      since = typeof since === 'object' ? since.id : since;
       if(max) {
-        query.id = {$gte: since.id, $lt: max.id};
+        max = typeof max === 'object' ? max.id : max;
+        query.id = {$gte: since, $lt: max};
       } else {
-        query.id = {$gte: since.id};
+        query.id = {$gte: since};
       }
     } else if(max) {
-      query.id = {$lt: max.id};
+      max = typeof max === 'object' ? max.id : max;
+      query.id = {$lt: max};
     }
     
     this.db.collection(this.name, function(error, collection) {
       if(error) return callback(error);
-      var cursor = collection.find(query).sort({id: -1});
+      var cursor = collection.find(query, {fields: {
+        _id: 0, id: 1, screen_name: 1, profile_image_url: 1, 
+        followers_count: 1, friends_count: 1, statuses_count: 1
+        }}).sort({id: -1});
       if(count) { cursor = cursor.limit(count); }
       cursor.toArray(callback);
     });
@@ -255,7 +290,7 @@ function Circle(db, type) {
     });
   }
   
-  this.page = function(uid, count, since, max, callback) {
+  this.range = function(uid, count, since, max, callback) {
     var query = {uid: uid, type: this.type};
     
     if(!callback) {
@@ -272,16 +307,16 @@ function Circle(db, type) {
     }
     
     if(since) {
-      since = typeof since.cid !== 'undefined' ? since.cid : since;
+      since = typeof since === 'object' ? since.cid : since;
       if(max) {
-        max = typeof max.cid !== 'undefined' ? max.cid : max;
+        max = typeof max === 'object' ? max.cid : max;
         query.cid = {$gte: since, $lt: max};
       } else {
         query.cid = {$gte: since};
       }
     } else if(max) {
-      max = typeof max.cid !== 'undefined' ? max.cid : max;
-      query.cid = {$lt: max.cid};
+      max = typeof max === 'object' ? max.cid : max;
+      query.cid = {$lt: max};
     }
     
     //console.log('[P] circle page params: '+uid+' '+count+' '+since+' '+max+', query: ', query);
@@ -361,17 +396,15 @@ function Post(db, name) {
     }
     
     function map() {
-      //var time = this.created_at.getHours()+':'+this.created_at.getMinutes()+':'+this.created_at.getSeconds();
-      var date = this.created_at.getFullYear()+'-'+(this.created_at.getMonth()+1)+'-'+this.created_at.getDate();
-      emit(date, {count: 1});
+      var year = this.created_at.getFullYear(), month = this.created_at.getMonth()+1, day = this.created_at.getDate();
+      var id = year + '/' + (month < 10 ? '0' + month : month) + '/' + (day < 10 ? '0'+day : day);
+      emit(id, 1);
     }
     
     function reduce(key, values) {
       var count = 0;
-      values.forEach(function(v) {
-        count += v.count;
-      });
-      return {count: count};
+      values.forEach(function(v) { count += v; });
+      return count;
     }
     
     this.db.collection(this.name, function(error, collection) {
@@ -445,7 +478,7 @@ function Post(db, name) {
     });
   }
   
-  this.page = function(query, count, since, max, callback) {
+  this.range = function(query, count, since, max, callback) {
     if(!callback) {
       if(typeof max === 'function') {
         callback = max;
