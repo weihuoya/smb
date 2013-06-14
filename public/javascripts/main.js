@@ -1,4 +1,4 @@
-(function($){
+﻿(function($){
   "use strict";
   
   var simpleFx = function(duration, tween) {
@@ -89,6 +89,9 @@
     render: function() {
       this.$el.html( $('#t-collection-header').html() );
       _(this.collection).each(function(model) { this.$el.append(this.template(model)) }, this);
+      this.$('tr td[rowspan]').filter(':even').each(function() {
+        $(this).parent().css('background-color', '#f8f8f8').nextAll().slice(0, this.rowSpan-1).css('background-color', '#f8f8f8');
+      });
       return this;
     }
   });
@@ -268,24 +271,25 @@
   
   var StatusView = BaseView.extend({
     cache: {},
-    events: { 'click #status-list a' : 'stats' },
-    initialize: function() { this.render() },
+    elems: undefined,
+    tagName: 'div',
+    attributes: { 'class': 'row-fluid' },
+    events: { 'click .nav-list a' : 'stats' },
+    initialize: function() {
+      //this.metricsListView = new MetricsListView();
+      //this.weiboListView = new WeiboListView();
+      this.render();
+    },
     
     render: function() {
-      this.setElement( $('#t-status-view').html() );
-      
-      if(!this.metricsListView) this.metricsListView = new MetricsListView();
-      
+      this.elems = $('<div class="span3 well sidebar-nav"/><div class="span9"/>');
+      this.$el.html(this.elems);
       if(!this.databaseListView) {
         var self = this;
         $.getJSON('/status/database', function(data) { self.show('database', null, data); });
       } else {
         this.show('database');
-        //this.databaseListView.delegateEvents();
       }
-      
-      if(!this.WeiboListView) this.weiboListView = new WeiboListView();
-      
       return this;
     },
     
@@ -293,31 +297,29 @@
       if(type === 'database') {
         if(!name) {
           if(!this.databaseListView) this.databaseListView = new DatabaseListView({collection: value});
-          $('#status-list').append(this.databaseListView.$el);
-          $('#status-list').append(this.metricsListView.$el);
-          $('#status-list').append(this.weiboListView.$el);
+          this.elems.eq(0).append(this.databaseListView.$el);
+          //this.elems.eq(0).append(this.metricsListView.$el);
+          //this.elems.eq(0).append(this.weiboListView.$el);
         } else {
           if(!this.collectionListView) this.collectionListView = new CollectionListView();
           this.collectionListView.collection = value;
-          //this.collectionListView.$el.empty();
-          $('#status-content').html( this.collectionListView.render().$el );
+          this.elems.eq(1).html( this.collectionListView.render().$el );
         }
-      } else if(type === 'robot') {
+      } /*else if(type === 'robot') {
         if(name === 'user') {
           if(!this.userMetricsView) this.userMetricsView = new UserMetricsView({collection: value});
-          $('#status-content').html( this.userMetricsView.el );
+          this.elems.eq(1).html( this.userMetricsView.$el );
         } else if(name === 'status') {
           if(!this.statusMetricsView) this.statusMetricsView = new StatusMetricsView({collection: value});
-          $('#status-content').html( this.statusMetricsView.el );
+          this.elems.eq(1).html( this.statusMetricsView.$el );
         }
-        //console.log(type+'/'+name+':', value);
       } else if(type === 'crawler') {
         if(!this.crawlerMetricsView) this.crawlerMetricsView = new CrawlerMetricsView({collection: value});
-        $('#status-content').html( this.crawlerMetricsView.el );
+        this.elems.eq(1).html( this.crawlerMetricsView.$el );
         console.log(type+'/'+name+':', value);
       } else if(type === 'weibo') {
         console.log('show: '+name);
-      }
+      }*/
     },
     
     stats: function(e) {
@@ -348,11 +350,7 @@
       'click button.clear': 'clear',
       'input input': 'input'
     },
-    
-    initialize: function() {
-      this.render()
-    },
-    
+    initialize: function() { this.render() },
     render: function() {
       this.$el.html(this.template())
       this.show();
@@ -386,8 +384,8 @@
       return input.length > 0 ? button.show() : button.hide();
     }
   });
-  
-  var PagingView = Backbone.View.extend({
+
+  var PagingView = BaseView.extend({
     model: {index: 0, total: 0},
     tagName: 'div',
     attributes: { 'class': 'pagination' },
@@ -421,9 +419,7 @@
     },
     
     turn: function(e) {
-      var action = $(e.currentTarget).data('action');
-      var index = this.model.index;
-      var total = this.model.total;
+      var index = this.model.index, total = this.model.total, action = $(e.currentTarget).data('action');
       if(action === '-' && index > 1) {
         index -= 1;
         this.show(index);
@@ -438,8 +434,8 @@
     },
     
     jump: function() {
-      var self = this, node = this.$('li.active'), page, form, input;
-      var index = this.model.index, total = this.model.total;
+      var self = this, index = this.model.index, total = this.model.total, 
+      node = this.$('li.active'), page, form, input;
       
       page = node.find('a').hide();
       form = node.find('form').show().submit(function(e) {
@@ -471,17 +467,29 @@
     }
   });
   
+  var CalenderGridView = BaseView.extend({
+    tagName: 'div',
+    attributes: { 'class': 'contrib-details grid' },
+    initialize: function() { this.show(); },
+    show: function(model) {
+      if(!model) model = {max: 0, max_text: '', act: 0, act_text: '', mean: 0, mean_text: ''};
+      this.$el.html( this.template(model) );
+      return this;
+    }
+  });
+  
   var CalendarView = BaseView.extend({
     cx: 0, cy: 0,
     tagName: 'div',
     attributes: { 'class': 'contrib-calendar' },
     initialize: function() {
       this.$el.css({position: 'relative'});
-      this.show([]);
+      this.CalenderGridView = new CalenderGridView();
+      this.show();
     },
     show: function(data) {
       this.$el.children().detach();
-      this.calendar(data);
+      return this.calendar(data);
     },
     move: function(x) {
       if(this.cx < 20 || x < 0) {
@@ -491,38 +499,52 @@
     },
     
     calendar: function(data) {
-      var i, d, x, y, z, F, ext, sum, max = 0, mean = 0, delta, levels, counters = [], 
+      var i, d, x, y, z, F, week, ext, sum, mdate, ib, ie, dc, begin, end, acount, dcount, is = 0, streak = 0, max = 0, mean = 0, delta, levels, counters = [], 
       k = 3.77972616981, day = 1000 * 60 * 60 * 24, colors = ["#d6e685", "#8cc665", "#44a340", "#1e6823"];
+      data || (data = []), acount = i = data.length;
       
-      data || (data = []), i = data.length;
-      if(i > 0) data[i-1][0] = new Date( data[i-1][0] ), data[0][0] = new Date(data[0][0]), max = data[0][1], mean = max, counters.push(max);
-      
-      while(--i > 0) {
-        x = data[i][0], z = data[i][1], mean += z, counters.push(z);
-        y = data[i-1][0], y = data[i-1][0] = new Date(y), d = (x.getTime() - y.getTime()) / day, d = parseInt(d, 10);
-        while(--d > 0) data.push([new Date(y.getTime() + d * day), 0]);
-        if(z > max) max = z;
+      if(i > 0) {
+        ib = ie = mdate = begin = end = data[i-1][0] = new Date( data[i-1][0] );
+        is = streak = mean = max = data[i-1][1], dc = dcount = 0;
+        counters.push(max);
+        
+        //计算平均值，获取最长活动时间，补上没有数据的日期信息
+        while(--i > 0) {
+          ib = x = data[i][0], z = data[i][1], mean += z, counters.push(z);
+          y = data[i-1][0], y = data[i-1][0] = new Date(y), d = (x.getTime() - y.getTime()) / day, d = parseInt(d, 10);
+          
+          if(d < 2) {
+            dc += 1, is += z;
+          } else {
+            if(dc > dcount || (dc === dcount && streak < is) ) streak = is, dcount = dc, begin = ib, end = ie;
+            dc = 1, ie = x, is = z;
+          }
+          
+          while(--d > 0) data.push([new Date(y.getTime() + d * day), 0]);
+          if(z > max) mdate = x, max = z;
+        }
+        
+        i = data.length, mean /= i, sum = 0, week = data[0][0].getDay(), data.sort( function (x, y) { return d3.ascending(x[0], y[0]) } );
+        while(week > 0) week -= 1, data.unshift([new Date(data[0][0].getTime() - day), 0]);
+        
+        //计算标准差
+        while(--i >= 0) x = data[i][0], y = data[i][1], delta = y - mean, sum += delta * delta;
+        d = Math.sqrt( sum / (data.length - 1) );
+        
+        //计算颜色分级
+        i = 0, ext = (max - mean < 6 || max < 15) ? 1 : 3;
+        while (i < ext) F = counters.filter(function (x) { var b; return b = Math.abs((mean - x) / d), b > k } ), F.length > 0 ? (F = F[0], counters = counters.filter(function (x) { return x !== F }), i === 0) : F = null, i += 1;
       }
       
-      mean /= data.length, i = data.length, sum = 0, data.sort( function (x, y) { return d3.ascending(x[0], y[0]) } );
-
-      while(--i >= 0) x = data[i][0], y = data[i][1], delta = y - mean, sum += delta * delta;
-      d = Math.sqrt( sum / (data.length - 1) );
-      
-      i = 0, ext = (max - mean < 6 || max < 15) ? 1 : 3;
-      while (i < ext) F = counters.filter(function (x) { var b; return b = Math.abs((mean - x) / d), b > k } ), F.length > 0 ? (F = F[0], counters = counters.filter(function (x) { return x !== F }), i === 0) : F = null, i += 1;
-      
       levels = d3.scale.quantile().domain([0, d3.max(counters)]).range(colors);
-      
       this.draw(data, levels);
+      return {max: {value: max, date: mdate}, act: {value: dcount, begin: begin, end: end, total: acount}, mean: {value: mean}};
     },
     
     draw: function(data, levels) {
-      var G, W, D, tip, formater, ext, prv, wdata = {}, mdata = {}, cell = 12, padding = 2, offsetX = 20, offsetY = 20;
-      this.cx = offsetX, this.cy = offsetY;
+      var G, W, D, tip, formater, ext, prv, epoch, self = this, wdata = {}, mdata = {}, cell = 12, padding = 2, offsetX = 20, offsetY = 20;
+      this.cx = offsetX, this.cy = offsetY, tip = $('<div class="svg-tip" />').hide(), this.$el.append(tip);
       
-      tip = this.$el.append('<div class="svg-tip"></div>').find("div.svg-tip").hide();
-      //tip = d3.select(this.el).append("div").attr("class", "svg-tip").style("display", "none"),
       G = d3.select(this.el).append("svg").attr("id", "calendar-graph")
       .append("g").attr("transform", "translate(" + offsetX + ", " + offsetY + ")");
 
@@ -531,12 +553,11 @@
       data.forEach(function (x) { var b; return b = formater(x[0]), wdata[b] || (wdata[b] = []), wdata[b].push(x) });
       wdata = d3.entries(wdata);
       
-      ext = data.length > 0 ? data[0][0].getFullYear() : 0;
+      epoch = data.length > 0 ? data[0][0].getFullYear() : 0;
       W = G.selectAll("g.week").data(wdata).enter().append("g")
       .attr("transform", function (d, i) {
         var x = d.value[0][0];
-        x = ext - x.getFullYear();
-        //return x.getFullYear() === (new Date).getFullYear() && x.getDay() !== 0 && ext === 0 && (ext = -1), "translate(" + (i + ext) * cell + ", 0)"
+        x = epoch - x.getFullYear();
         return "translate(" + (i + x) * cell + ", 0)"
       });
       
@@ -545,18 +566,13 @@
       .append("rect").attr("class", "day").attr("width", cell - padding).attr("height", cell - padding)
       .attr("y", function (d) { return formater(d[0]) * cell } )
       .style("fill", function (d) { return d[1] === 0 ? "#eee" : levels(d[1]) } )
-      .on("click", function (d) { console.log('contributions:range:click') } );
-      //.on("mouseover", function (d, y, x) {
-      //  var a = d3.time.format("%Y-%m-%d"), a = a(d[0]), b = d[1], b = b === 0 ? "No Status" : b + (b > 1 ? " Statuses" : "Status"), c, w = 0, h = 0;
-      //  tip.html('<strong>'+b+'</strong> on '+a);
-      //  w = tip.outerWidth(), h = tip.outerHeight(), 
-      //  c = {top: ( (y+1) * cell - h - 4) + "px", left: ( (x+2) * cell - w / 2) + "px"};
-        //console.log(c, w, h, x, y);
-        //console.log(d3.mouse(W));
-      //  tip.html('<strong>'+b+'</strong> on '+a).css(c).show()
-      //}).on("mouseout", function (d) { 
-      //  tip.hide()
-      //});
+      .on("click", function (d) { console.log('contributions:range:click') } )
+      .on("mouseover", function(data, row, col) { //data 节点数据, row 行, col 列
+        var width, height, pos, time=d3.time.format("%Y-%m-%d")(data[0]), text=data[1]===0?"No Status":data[1]+(data[1]>1?" Statuses":"Status");
+        tip.html("<strong>"+text+"</strong> on "+time), width = tip.outerWidth(), height = tip.outerHeight();
+        row+=1, col+=2-(data[0].getFullYear()-epoch), pos={top: (row*cell-height-4)+"px", left: (col*cell-width/2+1+self.cx-offsetX)+"px"};
+        tip.css(pos).show();
+      }).on("mouseout", function() { tip.hide() });
 
       D.append("title").text(function (d) {
         var a = d3.time.format("%Y-%m-%d"), a = a(d[0]), b = d[1], b = b === 0 ? "No Status" : b + (b > 1 ? " Statuses" : "Status");
@@ -581,36 +597,34 @@
       .attr("text-anchor", "middle").attr("class", "wday").attr("dx", -10)
       .attr("dy", function (d, i) { return offsetX + ((i - 1) * cell + padding) })
       .text(function (d) { return d[0] });
-      
-      //高亮一段日期
-      //from = this.$el.attr("data-from"), from && (from = new Date(from));
-      //to = this.$el.attr("data-to"), to && (to = new Date(to));
-      //D = G.selectAll("rect.day").classed("active", !1);
-      //(from || to) ? (d.addClass("days-selected"), D.filter(function (d) { return from && to ? d[0] >= from && d[0] <= to : d[0] === from }).classed("active", !0)) : d.removeClass("days-selected");
-      
-      //.svg-tip{padding:10px;background:#222;color:#bbb;font-size:12px;width:140px;position:absolute;z-index:99999;text-align:center;border-radius:2px;box-shadow:2px 2px 2px rgba(0,0,0,0.2);display:none}.svg-tip strong{color:#ddd}.svg-tip.is-visible{display:block}.svg-tip:after{box-sizing:border-box;display:inline;font-size:12px;width:100%;line-height:1;color:rgba(0,0,0,0.8);content:"\25BC";position:absolute;text-align:center;-webkit-font-smoothing:antialiased}.svg-tip.n:after{text-shadow:2px 2px 2px rgba(0,0,0,0.2);margin:-2px 0 0 0;top:100%;left:0}
-      
-      //n = d3.select(document.body).append("div").attr("class", "svg-tip"),
-      //m = function (a, b) {
-      //      var c, d, e, f, g, h;
-      //      return n.classed("is-visible", !0), n.html("<strong>" + a.commits + "</strong> " + $.pluralize(a.commits, "commit") + " by <strong>" + a.login + "</strong>"), d = $(n.node()), c = d3.event.target, f = c.ownerSVGElement, e = l(c, f), g = d.outerHeight(), h = d.outerWidth(), n.transition().duration(200).style("opacity", .9), n.style("left", "" + (e.x - h / 2) + "px").style("top", "" + (e.y - g - 5) + "px")
-      //  }, f = function (a, b) {
-      //      return n.transition().duration(500).style("opacity", 0), n.classed("is-visible", !1)
-      //  }
-      //on("mouseover", m).on("mouseout", f)
     }
   });
   
   var UserStateView = BaseView.extend({
     tagName: 'div',
+    attributes: { 'class': 'capped-box' },
     events: { 'click #calendar-ctrl a': 'scroll' },
-    initialize: function() { this.render() },
-    render: function() {
-      if(!this.calendarView) this.calendarView = new CalendarView();
-      this.$el.html( this.template() );
-      this.$('div.contrib-header').after(this.calendarView.$el)
+    initialize: function() {
+      this.calendarView = new CalendarView();
+      this.calenderGridView = new CalenderGridView();
+      this.render();
     },
-    show: function(data) { this.calendarView.show(data) },
+    render: function() {
+      this.$el.html( this.template() );
+      this.$('div.contrib-header').after(this.calendarView.$el);
+      this.$el.append(this.calenderGridView.$el);
+    },
+    show: function(data) {
+      var format = d3.time.format("%Y-%m-%d"), stats = this.calendarView.show(data);
+      this.calenderGridView.show({
+        max: stats.max.value,
+        max_text: 'Date: '+format(stats.max.date),
+        act: stats.act.value,
+        act_text: format(stats.act.begin)+' To '+format(stats.act.end),
+        mean: stats.mean.value.toFixed(2),
+        mean_text: 'Actived ' + stats.act.total + (stats.act.total>1?' days':' day')
+      });
+    },
     scroll: function(e) {
       var self = this, ctrl = $(e.currentTarget).data('ctrl');
       if(ctrl === '-') {
@@ -626,41 +640,40 @@
   var UserView = BaseView.extend({
     cache: {},
     tagName: 'div',
+    attributes: { 'class': 'row-fluid' },
     events: {
       'search': 'search',
       'user'  : 'user',
       'page'  : 'page'
     },
-    attributes: { 'class': 'row-fluid' },
-    initialize: function() { this.render() },
+    initialize: function() {
+      this.searchView = new SearchView();
+      this.userListView = new UserListView();
+      this.pagingView = new PagingView();
+      this.userStateView = new UserStateView();
+      this.render();
+    },
     
     render: function() {
-      var node;
-      if(!this.searchView) this.searchView = new SearchView();
-      if(!this.userListView) this.userListView = new UserListView();
-      if(!this.pagingView) this.pagingView = new PagingView();
-      if(!this.userStateView) this.userStateView = new UserStateView();
-      
-      this.$el.append('<div class="span3 well sidebar-nav"></div><div class="span9"></div>');
-      node = this.$('div');
+      var node = $('<div class="span3 well sidebar-nav"/><div class="span9"/>');
+      this.$el.html( node );
       node.eq(0).append(this.searchView.$el).append(this.userListView.$el).append(this.pagingView.$el);
       node.eq(1).append(this.userStateView.$el);
       this.show();
     },
     
     show: function(index, name) {
-      var key, 
-      self = this, 
+      var key, data, self = this;
       index = index ? index-1 : 0;
-      
       if(typeof name === 'string' && name.length > 0) {
         if(name.length > 64) name = name.substr(0, 64);
-        key = '/user/query/'+name+'/'+index;
+        key = '/data/user/'+name+'/'+index;
       } else {
-        key = '/user/'+index;
+        key = '/data/user/'+index;
       }
+      data = self.cache[key];
       
-      if(!self.cache[key]) {
+      if(!data) {
         $.getJSON(key, function(data) {
           var count = Math.ceil(data.total / data.limit);
           self.userListView.show(data.users);
@@ -668,7 +681,6 @@
           self.cache[key] = data;
         });
       } else {
-        var data = self.cache[key];
         var count = Math.ceil(data.total / data.limit);
         self.userListView.show(data.users);
         self.pagingView.show(data.index+1, count);
@@ -677,7 +689,8 @@
 
     search: function(e, i) { this.show(0, i) },
     user: function(e, i) {
-      var self = this, key = '/user/state/'+i, data = self.cache[key];
+      var self = this, key = '/data/state/'+i, data = self.cache[key];
+      location.hash = '#user/state/'+i;
       if(!data) {
         $.getJSON(key, function(data) {
           self.userStateView.show(data);
@@ -694,7 +707,7 @@
 
   var LoginView = BaseView.extend({
     tagName: 'div',
-    attributes: { 'id': 'login' },
+    attributes: { 'id': 'login', 'class': 'row-fluid' },
     initialize: function() { this.render() },
     render: function() {
       //this.setElement( $('#t-user-login').html() );
@@ -711,15 +724,353 @@
     }
   });
   
-  var HomeView = BaseView.extend({
+  var SystemView = BaseView.extend({
+    cache: {},
+    tagName: 'div',
+    attributes: { 'class': 'row-fluid' },
+    initialize: function() { this.render() },
+    render: function() { 
+      var self = this;
+      self.data('sys', function(data) { self.sys(data) });
+      self.data('cpu', function(data) { self.cpu(data) });
+      return self; 
+    },
+    data: function(type, callback) {
+      var self = this, key = '/status/'+type, data = self.cache[key];
+      if(!data) {
+        $.getJSON(key, function(data) {
+          data.uptime = parseInt(data.uptime / 60, 10);
+          data.freemem >>>= 20;
+          data.totalmem >>>= 20;
+          callback(data);
+          self.cache[key] = data;
+        });
+      } else {
+        callback(data);
+      }
+    },
+    sys: function(data) {
+      this.$el.append(this.template(data));
+    },
+    cpu: function(data) {
+      var div = $('<div class="info-bar"/>');
+      for(var i = 0; i < data.length; ++i) {
+        div.append('<div><p>'+data[i].model+'</p></div>');
+        div.append('<div class="progress"><div id="cpu-bar'+i+'" class="bar" style="width: 0%"></div></div>');
+      }
+      div.css('display', 'none');
+      this.$el.append(div);
+      div.slideDown('slow');
+      for(i = 0; i < data.length; ++i) {
+        div.find('#cpu-bar'+i).animate({width: (100 - data[i].idle / data[i].total * 100)+'%'});
+      }
+    }
+  });
+  
+  var ClusterListView = BaseView.extend({
+    tagName: 'div',
+    attributes: { 'class': 'row-fluid' },
+    initialize: function() { },
+    show: function(clusters) {
+      this.$el.children().detach();
+      _(clusters).each(function(cluster) { this.$el.append(this.template(cluster)) }, this)
+    }
+  });
+  
+  var AnalyzeHeroView = BaseView.extend({
+    model: { cluster: {index: 0, total: 0}, page: {index: 0, total: 0}},
+    tagName: 'div',
+    attributes: { 'class': 'navbar' },
+    events: { 'click a': 'turn'},
     initialize: function() { this.render() },
     render: function() {
-      //this.$el.html( $('#t-home-view').html() );
+      this.$el.html( this.template() );
+      this.show();
+    },
+    show: function(model) {
+      var cluster, page, node = this.$('ul li');
+      if(model) cluster = model.cluster, page = model.page;
+      
+      if(cluster) this.model.cluster = cluster;
+      else cluster = this.model.cluster;
+      
+      if(page) this.model.page = page;
+      else page = this.model.page;
+      
+      if(cluster.index > 1) node.eq(1).removeClass('disabled');
+      else node.eq(1).addClass('disabled');
+      
+      if(cluster.index < cluster.total) node.eq(3).remove('disabled');
+      else node.eq(3).addClass('disabled');
+      
+      node.eq(2).children('form').hide();
+      node.eq(2).children('a').text(cluster.index+'/'+cluster.total).css('display', 'block');
+      
+      if(page.index > 1) node.eq(5).removeClass('disabled');
+      else node.eq(5).addClass('disabled');
+      
+      if(page.index < page.total) node.eq(7).remove('disabled');
+      else node.eq(7).addClass('disabled');
+      
+      node.eq(6).children('form').hide();
+      node.eq(6).children('a').text(page.index+'/'+page.total).css('display', 'block');
+    },
+    turn: function(e) {
+      var action = $(e.currentTarget).data('action');
+      
+      switch(action) {
+        case 'cp':
+          if(this.model.cluster.index > 1) {
+            this.model.cluster.index -= 1;
+            this.model.page.index = 1;
+            //this.show(this.model);
+            this.$el.trigger('cluster', this.model);
+          }
+          break;
+        case 'ce':
+          this.jump(action);
+          break;
+        case 'cn':
+          if(this.model.cluster.index < this.model.cluster.total) {
+            this.model.cluster.index += 1;
+            this.model.page.index = 1;
+            //this.show(this.model);
+            this.$el.trigger('cluster', this.model);
+          }
+        case 'pp':
+          if(this.model.page.index > 1) {
+            this.model.page.index -= 1;
+            //this.show(this.model);
+            this.$el.trigger('cluster', this.model);
+          }
+          break;
+        case 'pe':
+          this.jump(action);
+          break;
+        case 'pn':
+          if(this.model.page.index < this.model.page.total) {
+            this.model.page.index += 1;
+            //this.show(this.model);
+            this.$el.trigger('cluster', this.model);
+          }
+        default:
+          break;
+      }
+    },
+    jump: function(action) {
+      var self = this, model, node = this.$('ul li'), page, form, input;
+      
+      if(action === 'ce') {
+        this.model.page.index = 1;
+        model = this.model.cluster;
+        node = node.eq(2);
+      } else {
+        model = this.model.page;
+        node = node.eq(6);
+      }
+      
+      page = node.children('a').hide();
+      form = node.children('form').show().submit(function(e) {
+        var x = parseInt( input.val() );
+        if(!isNaN(x) && x <= model.total && x > 0 && x !== model.index) {
+          model.index = x;
+          //self.show(this.model);
+          self.$el.trigger('page', this.model);
+        }
+        return input.blur(), false;
+      })
+      input = form.children('input').val(model.index).focus().blur(function(e) {
+        return form.hide(), page.css('display', 'block');
+      });
+    }
+  });
+  
+  var DatePickView = BaseView.extend({
+    tagName: 'div',
+    attributes: { 'class': 'date-pick' },
+    events: {'click button': 'submit'},
+    initialize: function() { this.render() },
+    render: function() {
+      var i, now = new Date(), year = now.getFullYear(), month = now.getMonth();
+      this.$el.html($('#t-datepick-view').html());
+      this.$('#datepicker-start').datetimepicker({pickTime: false});
+      this.$('#datepicker-end').datetimepicker({pickTime: false});
+    },
+    submit: function(e) {
+      var self = this, start = this.$('#datepicker-start input').val(), end = this.$('#datepicker-end input').val();
+      if(!start || !end || start === end) {
+        self.$el.trigger('alert', {text: '请输入一个时间段，系统才能分析这个时间段内的微博数据！', type: 'warning'} );
+      } else {
+        $.getJSON('/analyze/cluster/'+start+'/'+end, function(data) {
+          self.$el.trigger('alert', {text: '分析请求已经提交给系统处理，请稍后刷新页面查看结果！', type: 'info'});
+        });
+      }
+    }
+  });
+  
+  var RecordListView = BaseView.extend({
+    model: {id: 0},
+    tagName: 'ul',
+    attributes: { 'class': 'nav nav-list' },
+    events: {'click li a': 'select'},
+    initialize: function() { },
+    show: function(records) {
+      this.$el.children().detach();
+      this.$el.html('<li class="nav-header">已分析的时间段</li>');
+      _(records).each(function(record) {
+        var text = record.date_start + ' 到 ' + record.date_end;
+        this.$el.append(this.template({id: record.id, k: record.k, record: text}));
+      }, this);
+    },
+    select: function(e) {
+      var id = $(e.currentTarget).data('name');
+      if(id) this.model.id = parseInt(id, 10), this.$el.trigger('record', this.model.id);
+    }
+  });
+  
+  var AlertView = BaseView.extend({
+    timeId: null,
+    tagName: 'div',
+    initialize: function() {
+      this.$el.hide();
+    },
+    show: function(obj) {
+      var text = obj.text, type = obj.type, self = this;
+      switch(type) {
+        case 'warning':
+          this.$el.removeClass().addClass('alert alert-block');
+          break;
+        case 'error':
+          this.$el.removeClass().addClass('alert alert-error');
+          break;
+        case 'success':
+          this.$el.removeClass().addClass('alert alert-success');
+          break;
+        case 'info':
+          this.$el.removeClass().addClass('alert alert-info');
+          break;
+      }
+      this.$el.html(text).show('slow');
+      if(this.timeId) clearTimeout(this.timeId);
+      this.timeId = setTimeout(function() {
+        self.$el.hide('slow'), self.timeId = null;
+      }, 2000);
+    }
+  });
+  
+  var AnalyzeView = BaseView.extend({
+    cache: {},
+    tagName: 'div',
+    attributes: { 'class': 'row-fluid' },
+    events: {
+      'record' : 'record',
+      'cluster': 'cluster',
+      'alert': 'message'
+    },
+    initialize: function() {
+      this.datePickView = new DatePickView();
+      this.recordListView = new RecordListView();
+      this.pagingView = new PagingView();
+      
+      this.alertView = new AlertView();
+      this.analyzeHeroView = new AnalyzeHeroView();
+      this.clusterListView = new ClusterListView();
+      this.render();
+    },
+    render: function() {
+      var node = $('<div class="span3 well sidebar-nav"/><div class="span9"/>');
+      this.$el.html( node );
+      node.eq(0).append(this.datePickView.$el).append(this.recordListView.$el).append(this.pagingView.$el);
+      node.eq(1).append(this.alertView.$el).append(this.analyzeHeroView.$el).append(this.clusterListView.$el);
+      this.show();
+    },
+    message: function(e, i) { this.alertView.show(i) },
+    show: function(index, date) {
+      var key, data, self = this;
+      index = index ? index-1:0, key = '/data/record/' + index, data = self.cache[key];
+      
+      if(!data) {
+        $.getJSON(key, function(data) {
+          var start, end, i = data.records.length, 
+          format = d3.time.format("%Y-%m-%d"), 
+          count = Math.ceil(data.total / data.limit);
+          while(--i >= 0) {
+            start = data.records[i].date_start, end = data.records[i].date_end;
+            start = new Date(start), end = new Date(end);
+            data.records[i].date_start = format(start), data.records[i].date_end = format(end);
+          }
+          self.recordListView.show(data.records);
+          self.pagingView.show(data.index+1, count);
+          self.cache[key] = data;
+        });
+      } else {
+        var count = Math.ceil(data.total / data.limit);
+        self.analyzeListView.show(data.records);
+        self.pagingView.show(data.index+1, count);
+      }
+    },
+    record: function(e, i) {
+      this.status(i); 
+    },
+    cluster: function(e, i) {
+      this.status(this.recordListView.model.id, i);
+    },
+    status: function(id, cdata) {
+      var self = this, key, data;
+      if(!cdata) {
+        key = 'cluster/'+id+'/1/0', location.hash = '#'+key, key = '/data/'+key;
+        cdata = { cluster: {index: 0, total: 0}, page: {index: 0, total: 0}};
+      } else {
+        key = 'cluster/'+id+'/'+cdata.cluster.index+'/'+(cdata.page.index-1),
+        location.hash = '#'+key, key = '/data/'+key;
+      }
+      data = self.cache[key];
+      
+      if(!data) {
+        $.getJSON(key, function(data) {
+          var created_at, i = data.clusters.length, format = d3.time.format("%Y-%m-%d");
+          while(--i >= 0) {
+            if(!data.clusters[i].user) data.clusters[i].user = {id: 0, screen_name: '', friends_count: 'N', followers_count: 'N', statuses_count: 'N'};
+            created_at = data.clusters[i].created_at, created_at = new Date(created_at);
+            data.clusters[i].created_at = format(created_at);
+          }
+          if(data.count === 0) cdata.cluster.index = cdata.cluster.total = cdata.page.total = cdata.page.index = 0;
+          else cdata.cluster.index = data.k, cdata.cluster.total = data.count-1, cdata.page.total = Math.ceil(data.total / data.limit), cdata.page.index = cdata.page.total === 0 ? 0 : data.index+1;
+          self.analyzeHeroView.show(cdata);
+          self.clusterListView.show(data.clusters);
+          self.cache[key] = data;
+        });
+      } else {
+        if(data.count === 0) cdata.cluster.index = cdata.cluster.total = cdata.page.total = cdata.page.index = 0;
+        else cdata.cluster.index = data.k, cdata.cluster.total = data.count-1, cdata.page.total = Math.ceil(data.total / data.limit), cdata.page.index = cdata.page.total === 0 ? 0 : data.index+1;
+        self.analyzeHeroView.show(cdata);
+        self.clusterListView.show(data.clusters);
+      }
+    }
+  });
+  
+  var AboutView = BaseView.extend({
+    tagName: 'div',
+    attributes: { 'class': 'row-fluid' },
+    initialize: function() { this.render() },
+    render: function() {
+      this.$el.html( this.template() );
+      return this;
+    }
+  });
+  
+  var FooterView = BaseView.extend({
+    tagName: 'footer',
+    initialize: function() { this.render() },
+    render: function() {
+      this.$el.html('<p>Developed by ZhangWei, 2013</p>');
       return this;
     }
   });
   
   var AppRouter = Backbone.Router.extend({
+    subhead: undefined,
+    content: undefined,
     routes: {
       ''       : 'home',
       'home'   : 'home',
@@ -728,56 +1079,66 @@
       'user'   : 'user',
       'robot'  : 'robot',
       'analyze': 'analyze',
-      'about'  : 'about'
+      'about'  : 'about',
+      'user/:act/:id'   : 'user',
+      'analyze/:id/:k/:p': 'analyze'
     },
     
+    initialize: function() {
+      this.subhead = $('#subhead'), this.content = $('#content');
+      this.footerView = new FooterView();
+    },
+
     home: function() {
       if(!this.subheadView) {
         this.subheadView = new SubheadView();
-        $('#subhead').append( this.subheadView.$el );
+        this.subhead.append(this.subheadView.$el);
       }
-      if(!this.homeView) this.homeView = new HomeView();
-      
-      $('#subhead').show();
-      $('ul.nav')
-      $('#content').children().detach();
-      $('#content').append( this.homeView.$el );
+      if(!this.systemView) this.systemView = new SystemView();
+      this.subhead.show();
+      this.content.children().detach();
+      this.content.append(this.systemView.$el).append(this.footerView.$el);
     },
     
     status: function() {
       if(!this.statusView) this.statusView = new StatusView();
-      $('#subhead').hide();
-      $('#content').children().detach();
-      $('#content').append( this.statusView.$el );
+      this.subhead.hide();
+      this.content.children().detach();
+      this.content.append(this.statusView.$el).append(this.footerView.$el);
     },
     
     login: function() {
       if(!this.loginView) this.loginView = new LoginView();
-      $('#subhead').hide();
-      $('#content').children().detach();
-      $('#content').append( this.loginView.$el );
+      this.subhead.hide();
+      this.content.children().detach();
+      this.content.append(this.loginView.$el).append(this.footerView.$el);
     },
     
-    user: function() {
+    user: function(act, id) {
       if(!this.userView) this.userView = new UserView();
-      $('#subhead').hide();
-      $('#content').children().detach();
-      $('#content').append( this.userView.$el );
+      this.subhead.hide();
+      this.content.children().detach();
+      this.content.append(this.userView.$el).append(this.footerView.$el);
     },
     
     robot: function() {
-      $('#subhead').hide();
-      $('#content').children().detach();
+      this.subhead.hide();
+      this.content.children().detach();
+      this.content.append(this.footerView.$el);
     },
     
-    analyze: function() {
-      $('#subhead').hide();
-      $('#content').children().detach();
+    analyze: function(id, k, page) {
+      if(!this.analyzeView) this.analyzeView = new AnalyzeView();
+      this.subhead.hide();
+      this.content.children().detach();
+      this.content.append(this.analyzeView.$el).append(this.footerView.$el);
     },
     
     about: function() {
-      $('#subhead').hide();
-      $('#content').children().detach();
+      if(!this.aboutView) this.aboutView = new AboutView();
+      this.subhead.hide();
+      this.content.children().detach();
+      this.content.append(this.aboutView.$el).append(this.footerView.$el);
     }
     
   });
@@ -787,17 +1148,18 @@
     
     CollectionListView.prototype.template = _.template( $('#t-collection-body').html() );
     DatabaseListView.prototype.template   = _.template( $('#t-database-list').html() );
+    RecordListView.prototype.template   = _.template( $('#t-record-list').html() );
+    CalenderGridView.prototype.template = _.template( $('#t-calender-grid').html() );
     
-    PagingView.prototype.template    = _.template( $('#t-paging-view').html() );
-    SearchView.prototype.template    = _.template( $('#t-search-box').html() );
-    UserListView.prototype.template  = _.template( $('#t-user-item').html() );
-    UserStateView.prototype.template = _.template( $('#t-user-state').html() );
-	SubheadView.prototype.template      = _.template( $('#t-subhead-view').html() );
-    //HomeView.prototype.template      = _.template( $('#t-home-view').html() );
-    
-    //CalendarView.prototype.template = _.template( $('#t-user-calendar').html() );
-    //UserView.prototype.template = _.template( $('#t-user-content').html() );
-    //UserView.prototype.useritem = _.template( $('#t-user-item').html() );
+    PagingView.prototype.template      = _.template( $('#t-paging-view').html() );
+    SearchView.prototype.template      = _.template( $('#t-search-box').html() );
+    UserListView.prototype.template    = _.template( $('#t-user-item').html() );
+    UserStateView.prototype.template   = _.template( $('#t-user-state').html() );
+    SubheadView.prototype.template     = _.template( $('#t-subhead-view').html() );
+    SystemView.prototype.template      = _.template( $('#t-system-view').html() );
+    ClusterListView.prototype.template = _.template( $('#t-media-item').html() );
+    AnalyzeHeroView.prototype.template = _.template( $('#t-analyze-hero').html() );
+    AboutView.prototype.template       = _.template( $('#t-about-view').html() );
     
     var app = new AppRouter();
     Backbone.history.start();

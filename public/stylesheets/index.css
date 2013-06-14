@@ -1,23 +1,20 @@
 body {
   padding-top: 41px;
   padding-bottom: 10px;
+  font-family: "Helvetica Neue",Helvetica,Arial,Microsoft Yahei,sans-serif;
 }
-.sidebar-nav {
-  padding: 9px 0;
-}
+ul { list-style-type: none; }
+.sidebar-nav { padding: 9px 0; }
+.dropdown-menu { min-width: 0; }
 
-.nav li:first-child  a {
-  padding-left: 0;
-}
-
-#content {
+#content { padding-top: 20px; }
+footer {
+  border-top: 1px solid #eee;
+  margin-top: 20px;
   padding-top: 20px;
 }
-
 /*login view*/
-div#login {
-  margin: 40px auto;
-}
+div#login { margin: 40px auto; }
 div#login form {
   margin: auto;
   width: 400px;
@@ -107,20 +104,20 @@ div#quick_signin img {
 }
 
 /*status view*/
-table, td, th {
+.span9 table, .span9 td, .span9 th {
   border: 1px solid #CED5DA;
 }
-table {
+.span9 table {
   border-collapse: collapse;
   margin: 5px auto;
 }
-th {
+.span9 th {
   background: #D5E0E6;
   height: 16px;
   padding: 4px 8px;
   text-align: left;
 }
-td {
+.span9 td {
   padding: 4px;
   text-align: center;
 }
@@ -390,6 +387,7 @@ color: #fff;
   left:0
 }
 
+/*subhead view*/
 #subhead {
 position: relative;
 padding: 40px 0;
@@ -408,7 +406,6 @@ filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#020031', end
 -moz-box-shadow: inset 0 3px 7px rgba(0,0,0,.2), inset 0 -3px 7px rgba(0,0,0,.2);
 box-shadow: inset 0 3px 7px rgba(0,0,0,.2), inset 0 -3px 7px rgba(0,0,0,.2);
 }
-
 #subhead::after {
 content: '';
 display: block;
@@ -419,4 +416,104 @@ bottom: 0;
 left: 0;
 background: url(/images/bs-docs-masthead-pattern.png) repeat center center;
 opacity: .4;
+}
+
+/*system info*/
+.info-table {
+width: 900px;
+margin: 0 auto;
+font-size: 12px;
+}
+.info-bar {
+  padding: 20px 0;
+  margin: 0 auto;
+  width: 600px;
+  font-size: 12px;
+}
+.info-table div {
+  display: table-cell;
+  width: 1%;
+  vertical-align:middle;
+}
+.info-table dl {
+padding: 7px 0;
+margin: 0;
+}
+.info-table  dt {
+width: 140px;
+color: #666;
+text-align: right;
+white-space: nowrap;
+color: #999;
+padding-right: 10px;
+}
+.info-table  dt, .info-table  dd {
+float: left;
+line-height: 25px;
+font-weight: normal;
+margin: 0;
+}
+
+/*analyze view*/
+.hero-unit span {
+  font-size: 14px;
+  margin-left: 5px;
+}
+.date-pick {
+  display: table;
+  margin: 0 auto;
+}
+.date-pick label {
+  display: inline-block;
+  margin-right: 10px;
+  margin-bottom: 0;
+  line-height: 30px;
+}
+.date-pick input {
+  width: 120px;
+}
+.date-pick button {
+  width: 100%;
+}
+.date-pick .input-append {
+  display: block;
+}
+.span9 .navbar-inner {
+  margin-bottom: 30px;
+}
+.nav input {
+  width: 30px;
+}
+.span4 {
+  margin-bottom: 20px;
+}
+.span4 .well {
+  margin-bottom: 0;
+}
+.media .well {
+  margin-bottom: 0;
+}
+.weibo-user ul {
+  margin: 0;
+}
+.weibo-user li {
+  float: left;
+  padding: 1px 10px 1px 0;
+}
+.weibo-state {
+  float: right;
+}
+.weibo-state ul {
+  margin: 2px 0;
+}
+.weibo-state li {
+  float: left;
+  margin: 0px 2px 0 0;
+  padding: 1px 5px;
+  font-size: 0.8em;
+  color: #555;
+}
+.weibo-state strong {
+  text-decoration: none;
+  font-weight: bold;
 }

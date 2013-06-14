@@ -1,7 +1,6 @@
 var HttpClient = require('./http'),
     QueryString= require('querystring'),
-    URL = require('url'),
-    Samples = require('./samples');
+    URL = require('url');
 
 module.exports = Weibo;
 
@@ -262,7 +261,6 @@ Weibo.prototype.authenticate = function(redirect, callback) {
   };
 
   return authHandler(
-    self.client, 
     app.id, app.secret, app.callback, 
     sina.auth, sina.token, 
     null, redirect, function(error, data) {
@@ -274,7 +272,7 @@ Weibo.prototype.authenticate = function(redirect, callback) {
 }
 
 
-function authHandler(client, app_id, app_secret, callback_url, auth_url, token_url, oauth_scope, actions, callback) {
+function authHandler(app_id, app_secret, callback_url, auth_url, token_url, oauth_scope, actions, callback) {
   return express_handler;
 
   function express_handler(req, res, next) {
@@ -354,7 +352,7 @@ function hook(method) {
       sample = takeSample(api, result);
       sample.params = params;
       sample.time = interval;
-      Samples.add(sample);
+      //Samples.add(sample);
       
       callback(null, result);
     };

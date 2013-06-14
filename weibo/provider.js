@@ -3,7 +3,9 @@ var Db = require('mongodb').Db
   , Server = require('mongodb').Server
   , BSON = require('mongodb').BSON
   , ObjectID = require('mongodb').ObjectID
+  , async = require('asyncjs')
   , Monitor = require('./monitor');
+  
 
 module.exports = SinaProvider;
 
@@ -13,20 +15,19 @@ var COMMENT = 'comment';
 var FRIEND = 0;
 var FOLLOWER = 1;
 var STATUSID = 2;
-var RECORD = 3;
 
 
 function SinaProvider(host, port) {
   this.host = host || 'localhost';
   this.port = port || 27017;
+  this.db = undefined;
   
   this.user = undefined;
   this.follower = undefined;
   this.friend = undefined;
   this.status = undefined;
   this.comment = undefined;
-  this.record = undefined;
-  
+  this.cluster = undefined;
   //Monitor();
 }
 
@@ -50,6 +51,7 @@ SinaProvider.prototype.open = function(host, port, callback) {
     if(error) return callback(error);
     self.host = host;
     self.port = port;
+    self.db = db;
 
     self.user = new User(db);
     self.friend = new Circle(db, FRIEND);
@@ -57,8 +59,8 @@ SinaProvider.prototype.open = function(host, port, callback) {
     self.status = new Post(db, STATUS);
     self.status.id = new Circle(db, STATUSID); 
     self.comment = new Post(db, COMMENT);
-    self.record = new Circle(db, RECORD); 
-
+    self.cluster = new Cluster(db, self);
+    
     callback(null, self);
   });
 }
@@ -86,10 +88,8 @@ SinaProvider.prototype.timeline = function(id, callback) {
   var timeline = new Post(this.db, 'timeline_' + id);
   
   timeline.create(function (error, collection) {
-    if(error)
-      callback(error);
-    else
-      callback(null, timeline);
+    if(error) return callback(error);
+    callback(null, timeline);
   });
 }
 
@@ -97,9 +97,91 @@ SinaProvider.prototype.timeline = function(id, callback) {
 /**
  *  
 **/
+function Cluster(db, provider) {
+  this.db = db, this.record = 'record', this.cluster = 'cluster', this.provider = provider;
+}
+
+(function () {
+  this.record_count = function(date, callback) {
+    var query = {};
+    if(typeof date === 'function') {
+      callback = date;
+      date = 0;
+    }
+    this.db.collection(this.record, function(error, collection) {
+      if(error) return callback(error);
+      collection.find(query).count(callback);
+    });
+  }
+  
+  this.record_find = function(id, callback) {
+    this.db.collection(this.record, function(error, collection) {
+      if(error) return callback(error);
+      collection.findOne({id: id}, {fields: {_id: 0}}, callback);
+    });
+  }
+  
+  this.record_list = function(index, count, date, callback) {
+    var query = {};
+    if(typeof date === 'function') {
+      callback = date;
+      date = 0;
+    }
+    this.db.collection(this.record, function(error, collection) {
+      if(error) return callback(error);
+      collection.find(query, {fields: {_id: 0}}).sort({date_start: 1}).skip(index * count).limit(count).toArray(callback);
+    });
+  }
+  
+  this.cluster_count = function(query, callback) {
+    if(typeof query === 'function') {
+      callback = query;
+      query = {};
+    }
+    this.db.collection(this.cluster, function(error, collection) {
+      if(error) return callback(error);
+      collection.find(query).count(callback);
+    });
+  }
+  
+  this.cluster_page = function(index, count, query, callback) {
+    var self = this, docs = [];
+    if(typeof k === 'function') {
+      callback = k;
+      k = 1;
+    }
+    
+    self.db.collection(self.cluster, function(error, collection) {
+      if(error) return callback(error);
+      
+      collection.find(query, {fields: {_id: 0, sid: 1}}).sort({id: 1}).skip(index * count).limit(count)
+      .toArray(function(error, records) {
+        if(error) return callback(error);
+        async.list(records).each(function(record, next) {
+          self.provider.status.find(record.sid, function(error, status) {
+            if(error) return callback(error);
+            self.provider.user.find(status.uid, function(error, user) {
+              if(error) return callback(error);
+              status.user = user;
+              docs.push(status);
+              next();
+            });
+          });
+        }).end(function(error) {
+          if(error) return callback(error);
+          callback(null, docs);
+        });
+      });
+    });
+  }
+}).call(Cluster.prototype)
+
+
+/**
+ *  
+**/
 function User(db) {
-  this.db = db;
-  this.name = 'user';
+  this.db = db, this.name = 'user';
 }
 
 (function() {
@@ -148,11 +230,39 @@ function User(db) {
     }
     this.db.collection(this.name, function(error, collection) {
       if(error) return callback(error);
-      var cursor = collection.find(query, {fields: {
+      collection.find(query, {fields: {
         _id: 0, id: 1, screen_name: 1, profile_image_url: 1, 
         followers_count: 1, friends_count: 1, statuses_count: 1
         }}).sort({id: -1}).skip(index * count).limit(count).toArray(callback);
     });
+  }
+  
+  //遍历用户
+  this.each = function(callback, complete) {
+    var self = this, count = 0;
+    
+    self.count(function(error, result) {
+      if(error) complete(error);
+      repeater(0, result, callback);
+    });
+    
+    function repeater(since, limit, callback) {
+      self.range(512, since, function(error, users) {
+        if(error) return complete(error);
+        var i = users.length, since;
+        if(i > 0) {
+          count += i;
+          since = users[--i].id + 1;
+          callback(users[i], handler);
+        }
+        function handler(error) {
+          if(error) complete(error);
+          if(i >= 0) return callback(users[--i], handler);
+          else if(count < limit) repeater(since, limit, callback);
+          else complete(null, limit);
+        }
+      });
+    }
   }
   
   this.range = function(count, since, max, callback) {
@@ -470,7 +580,11 @@ function Post(db, name) {
   this.find = function(id, fields, callback) {
     if(typeof fields === 'function') {
       callback = fields;
-      fields = {};
+      if(this.name === STATUS) {
+        fields = {_id: 0, id: 1, uid: 1, sid: 1, created_at: 1, reposts_count: 1, comments_count: 1, text: 1};
+      } else {
+        fields = {};
+      }
     }
     this.db.collection(this.name, function(error, collection) {
       if(error) return callback(error);

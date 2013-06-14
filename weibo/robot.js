@@ -1,18 +1,16 @@
 
 var SinaProvider = require('./provider')
   , SinaCrawler = require('./crawler')
-  , Metrics = require('./metrics')
-  , async = require('asyncjs')
-  ,_ = require('../underscore');
+  , async = require('asyncjs');
 
 module.exports = SinaRobot;
+
 
 function SinaRobot(weibo) {
   var self = this;
   this.crawler = new SinaCrawler(weibo);
   this.provider = new SinaProvider();
-  
-  var bundle = {
+  this.bundle = {
     status: {
       todo: function(id, callback) {
         self.provider.user.find(id, {_id: 0, id: 1, statuses_count: 1}, function(error, user) {
@@ -279,10 +277,10 @@ function SinaRobot(weibo) {
       }
     }
   };
-
-  for(var key in bundle) 
-    this[key] = handler(bundle, key);
-
+  
+  
+  for(var key in this.bundle) this[key] = handler(this.bundle, key);
+  
   function handler(bundle, x) {
     return function(id, callback) {
       bundle[x].todo(id, function(error, value) {
@@ -294,8 +292,8 @@ function SinaRobot(weibo) {
             
             //Metrics[x].userCount = value;
             //Metrics[x].dbCount = count;
-            
-            if(value === count || Math.abs(value - count) < 10)
+            //if(value === count || Math.abs(value - count) < 10)
+            if(approximate(value, count))
               return callback(null, 0);
             else
               bundle[x].worker(id, callback);
@@ -306,6 +304,7 @@ function SinaRobot(weibo) {
       });
     };
   }
+  
 }
 
 
@@ -319,14 +318,62 @@ SinaRobot.prototype.run = function(callback) {
         if(error) return callback(error);
         self.crawler.adjustFrequency(function(error) {
           if(error) return callback(error);
-          self.handler(params.uid, callback);
+          self.weibo(function(error) {
+            if(error) return callback(error);
+            self.handler(params.uid, callback);
+          });
         });
       });
     });
   };
 }
 
+SinaRobot.prototype.user = function(uids, callback) {
+  var self = this, users = [];
+  self.crawler.getUsers(uids, function(profile, next) {
+    users.push(profile);
+    if(users.length > 32) self.saveUsers(users, next), users = [];
+    else next();
+  }, function(error) {
+    if(error) return callback(error);
+    if(users.length > 0) self.saveUsers(users, callback);
+    else callback();
+  });
+}
 
+//遍历所有用户，获取用户的微博
+SinaRobot.prototype.weibo = function(callback) {
+  var self = this, uids = [], statuses = [];
+  
+  self.provider.user.each(handler, callback);
+  
+  function handler(user, next) {
+    self.bundle.status.count(user.id, function(error, count) {
+      if(error) return callback(error);
+      if(!approximate(user.statuses_count, count)) {
+        uids.push(user.id);
+        if(uids.length > 100) {
+          self.user(uids, function(error) {
+            if(error) return callback(error);
+            async.list(uids).each(function(uid, next) {
+              self.status(uid, next);
+            }).end(function(error) {
+              if(error) return callback(error);
+              uids = [];
+              next();
+            });
+          });
+        } else {
+          next();
+        }
+      } else {
+        next();
+      }
+    });
+  }
+}
+
+//按照用户关系，获取用户微博
 SinaRobot.prototype.handler = function(user, callback) {
   //var sample = metrics.robot.sample();
   var self = this, last = null, stack = [user], queue = [user];
@@ -402,32 +449,6 @@ SinaRobot.prototype.handler = function(user, callback) {
     });
   }
 }
-
-
-SinaRobot.prototype.user = function(uids, callback) {
-  var self = this;
-  var statuses = [];
-
-  async.list(uids).each(function(uid, next) {
-    self.provider.user.find(uid, {_id: 0, id: 1}, function(error, data) {
-      if(error) return next(error);
-      if(data) return next(error, data);
-      self.crawler.getUser(uid, function(error, profile) {
-        if(error) next(error);
-        if(typeof profile.status !== 'undefined') {
-          profile.status.uid = profile.id;
-          statuses.push(profile.status);
-          delete profile.status;
-        }
-        self.saveUsers(profile, next);
-      });
-    });
-  }).end(function(error, data) {
-    if(error) return callback(error);
-    self.savePosts(statuses, callback);
-  });
-}
-
 
 SinaRobot.prototype.saveUsers = function(users, callback) {
   var self = this;
@@ -541,3 +562,18 @@ SinaRobot.prototype.savePosts = function(posts, callback) {
     }
   }
 }
+
+
+
+//近似值比较
+function approximate(x, y) {
+  if(x === y) return true;
+  var err = 108, ratio = 0.016;
+  Math.max(err, x * ratio);
+  Math.max(err, y * ratio);
+  err = parseInt(err, 10);
+  if( Math.abs(x - y) < err ) return true;
+  return false;
+}
+
+

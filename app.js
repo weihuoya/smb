@@ -7,12 +7,13 @@
 var express = require('express')
   //, gzippo = require('gzippo')
   //, routes = require('./routes')
-  , user = require('./routes/user')
+  , data = require('./routes/data')
   , status = require('./routes/status')
+  , analyze = require('./routes/analyze')
   , http = require('http')
   , path = require('path')
   , assert = require('assert')
-  , utest = require('./test/test')
+  //, utest = require('./test/test')
   //, memwatch = require('memwatch')
   //, Crawler = require('./weibo/crawler')
   , Weibo = require('./weibo/weibo')
@@ -33,7 +34,7 @@ var oauthHandler = weibo.authenticate(
   //}
 );
 
-utest.test();
+//utest.test();
 
 app.configure(function() {
   app.set('port', process.env.PORT || 3000);
@@ -58,7 +59,8 @@ app.get('/auth/weibo', oauthHandler);
 app.get('/auth/weibo/callback', oauthHandler);
 
 app.get('/status/:type/:name?/:page?', status.handler);
-app.get('/user/:type?/:name?/:page?', user.handler);
+app.get('/analyze/:type/:name?/:page?', analyze.handler);
+app.get('/data/:type?/:name?/:page?/:extra?', data.handler);
 
 //app.get('/status/db/:name', status.stats);
 //app.get('/robot/:type/:page?', status.user);

@@ -1,0 +1,26 @@
+{
+  "ICTCLAS" : "lib\\ICTCLAS50",
+  "dictionary" : {
+    "user" : "lib\\weibo.dic",
+    "noise" : "lib\\noise.dic"
+  },
+  "database" : {
+    "server" : "localhost",
+    "user" : "sina-weibo.user",
+    "status" : "sina-weibo.status",
+    "cluster" : "sina-weibo.cluster",
+    "record" : "sina-weibo.record"
+  },
+  "filter" : {
+    "user" : {
+      "status" : 50,
+      "follower" : 50,
+      "friend" : 50
+    },
+    "status": {
+      "length" : 10,
+      "repost" : 10,
+      "comment" : 10
+    }
+  }
+}

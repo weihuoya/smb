@@ -9,6 +9,7 @@ module.exports = HttpClient;
 
 function HttpClient(token) {
   this._token = token;
+  this._retry = false;
 }
 
 HttpClient.prototype.setToken = function(token) {
@@ -51,12 +52,8 @@ HttpClient.prototype.post = function(url, headers, params, callback) {
  * callback(error, result, response)
 **/
 HttpClient.prototype.request= function(method, url, headers, content, token, callback) {
-  var result= '';
-  var realHeaders= {};
-  var http_library= https;
-  var callbackCalled= false;
-  var creds = crypto.createCredentials({});
-  var parsedUrl= URL.parse(url, true);
+  var self= this, args= arguments, result= '', realHeaders= {}, http_library= https, 
+  callbackCalled= false, creds= crypto.createCredentials({}), parsedUrl= URL.parse(url, true);
   var allowEarlyClose= parsedUrl.hostname ? parsedUrl.hostname.match('.*google(apis)?.com$') : false;
   
   if( parsedUrl.protocol != 'https:' ) {
@@ -71,8 +68,13 @@ HttpClient.prototype.request= function(method, url, headers, content, token, cal
     }
   }
   realHeaders['Host']= parsedUrl.host;
-  realHeaders['Accept-Encoding']= 'deflate, gzip, identity, *;q=0';
-  realHeaders['TE']= 'deflate, gzip, chunked, identity, trailers';
+  
+  if(!self._retry) {
+    realHeaders['Accept-Encoding']= 'deflate, gzip, identity, *;q=0';
+    realHeaders['TE']= 'deflate, gzip, chunked, identity, trailers';
+  } else {
+    self._retry = false;
+  }
 
   if( method == 'POST' ) {
     realHeaders['Content-Length']= content ? Buffer.byteLength(content) : 0;
@@ -104,8 +106,13 @@ HttpClient.prototype.request= function(method, url, headers, content, token, cal
       response.pipe(inflate);
       stream = inflate;
     }
+    stream.on('error', function(err) {
+      console.log(err);
+      self._retry = true;
+      self.request.apply(self, args);
+    });
     stream.on('data', function (chunk) {
-      result+= chunk 
+      result+= chunk;
     });
     stream.on('close', function (err) {
       if( allowEarlyClose ) passBackControl( response, result );
