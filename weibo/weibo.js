@@ -1,6 +1,7 @@
 var HttpClient = require('./http'),
     QueryString= require('querystring'),
     URL = require('url');
+    //Samples = require('./samples');
 
 module.exports = Weibo;
 
@@ -253,7 +254,12 @@ Weibo.prototype.authenticate = function(redirect, callback) {
     auth: 'https://api.weibo.com/oauth2/authorize',
     token: 'https://api.weibo.com/oauth2/access_token'
   };
-
+  
+  var tencent = {
+    auth: 'https://open.t.qq.com/cgi-bin/oauth2/authorize',
+    token: 'https://open.t.qq.com/cgi-bin/oauth2/access_token'
+  };
+  
   var app = {
     id: '2191887514', 
     secret: 'bd04a1ffc83d07151db417d8257005fc',

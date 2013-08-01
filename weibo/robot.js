@@ -1,7 +1,9 @@
 
 var SinaProvider = require('./provider')
   , SinaCrawler = require('./crawler')
-  , async = require('asyncjs');
+  //, Metrics = require('./metrics')
+  , async = require('asyncjs')
+  ,_ = require('./underscore');
 
 module.exports = SinaRobot;
 

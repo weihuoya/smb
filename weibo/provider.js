@@ -593,6 +593,7 @@ function Post(db, name) {
   }
   
   this.range = function(query, count, since, max, callback) {
+    var fields = {_id: 0, id: 1}, fields2 = {_id: 0, id: 1, uid: 1, sid: 1, created_at: 1, reposts_count: 1, comments_count: 1, text: 1};
     if(!callback) {
       if(typeof max === 'function') {
         callback = max;
@@ -607,18 +608,26 @@ function Post(db, name) {
     }
     
     if(since) {
-      if(max) {
-        query.id = {$gte: since.id, $lt: max.id};
+      if(since instanceof Date) {
+        query.created_at = max ? {$gte: since, $lt: max} : {$gte: since}, fields = fields2;
+      } else if(typeof since === 'object') {
+        query.id = max ? {$gte: since.id, $lt: max.id} : {$gte: since.id};
       } else {
-        query.id = {$gte: since.id};
+        query.id = max ? {$gte: since, $lt: max} : {$gte: since};
       }
     } else if(max) {
-      query.id = {$lt: max.id};
+      if(max instanceof Date) {
+        query.created_at = {$lt: max}, fields = fields2;
+      } else if(typeof max === 'object') {
+        query.id = {$lt: max.id};
+      } else {
+        query.id = {$lt: max};
+      }
     }
-
+    
     this.db.collection(this.name, function(error, collection) {
       if(error) return callback(error);
-      var cursor = collection.find(query, {fields: {_id: 0, id: 1}}).sort({id: -1});
+      var cursor = collection.find(query, {fields: fields}).sort({id: -1});
       if(count) { cursor = cursor.limit(count); }
       cursor.toArray(callback);
     });

@@ -23,6 +23,9 @@ exports.handler = function(req, res) {
     case 'state':
       state(name);
       break;
+    case 'status':
+      status(name, page, extra);
+      break;
     case 'record':
       if(!page) page = name, name = null;
       record(page, name);
@@ -57,6 +60,14 @@ exports.handler = function(req, res) {
     provider.status.timeline(user, function(error, data) {
       if(error) res.json(500, {error: 'user timeline query error'}), console.log(error);
       res.json( data.map(function(item, index, array) { return [item._id, item.value] }) );
+    });
+  }
+  
+  function status(user, since, max) {
+    user = user ? parseInt(user) : 0, since = new Date(since), max = new Date(max);
+    provider.status.range({uid: user}, 100, since, max, function(error, statuses) {
+      if(error) res.json(500, {error: 'status range query error'}), console.log(error);
+      res.json(statuses);
     });
   }
   
